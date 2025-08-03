@@ -6,7 +6,7 @@ Sam Dawley
 """
 
 
-from src.trade import TradeConfig
+from src.trade import TradingPartner
 
 # ==================================================
 # MAIN ROUTINES
@@ -20,7 +20,7 @@ def main() -> int:
 
     # ----- trading client -----
 
-    trader = TradeConfig()
+    trader = TradingPartner()
     trader.get_account()
 
 

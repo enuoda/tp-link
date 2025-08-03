@@ -8,16 +8,19 @@ import os
 
 from dotenv import load_dotenv
 
-# trading
+# trading client
 from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import GetAssetsRequest
 from alpaca.trading.enums import AssetClass
+
+# trading framework and algorithms
+import backtrader as bt
 
 # ==================================================
 # TRADER
 # ==================================================
 
-class TradeConfig:
+class TradingPartner:
 
     # ===== Initialization =====
 
