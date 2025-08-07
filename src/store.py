@@ -43,9 +43,9 @@ class Market:
     def __repr__(self) -> str:
         return f""
     
-    # ==================================================
+    # ==============================
     # DEPARTMENT OF THE INTERIOR
-    # ==================================================
+    # ==============================
     
     def _get_stock_symbols(self, exchange: str, mic: str = None, security_type: str = None, currency: str = None) -> list:
         """
@@ -61,9 +61,9 @@ class Market:
         """
         return self.client.stock_symbols(exchange, mic=mic, security_type=security_type, currency=currency)
     
-    # ==================================================
+    # ==============================
     # DEPARTMENT OF THE EXTERIOR
-    # ==================================================
+    # ==============================
 
     def get_company_profile(self, symbol: str, isin: str = None, cusip: str = None) -> None:
         """
