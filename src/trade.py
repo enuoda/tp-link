@@ -14,7 +14,6 @@ from alpaca.trading.enums import AssetClass
 
 # brain of trader 
 import backtrader as bt
-import yfinance as yf
 
 # trading framework and algorithms
 from src.algo import SimpleMovingAverage
@@ -27,66 +26,41 @@ class TradingPartner:
     """
     Class which defines our trader
     """
-    ticker = "MSFT"
 
-    def __init__(
-            self,
-            apca_api_key: str | None = None,
-            apca_api_secret_key: str | None = None,
-            apca_paper: bool = True,
-            **cerebral_kwargs
-        ) -> None:
+    load_dotenv()
+    apca_api_key = os.getenv("ALPACA_API_KEY")
+    apca_api_secret_key = os.getenv("ALPACA_SECRET_KEY")
+    
+    apca_paper = True
+
+    # ==================================================
+    # INITIALIZATION
+    # ==================================================
+
+    def __init__(self, **cerebral_kwargs) -> None:
         """
         Parameters:
         -----------
-            api_key : str
-                public API key for use with Alpaca
-                Assumed that this is stored in tp-link/.env
-            api_secret_key : str
-                secret API key for use with Alpaca
-                Assumed that this is stored in tp-link/.env
-            paper : bool
-                whether or not use to paper-market with Alpaca
             **cerebral_kwargs : dict
                 optional parametrs to load with backtrader.Cerebro
                 See https://www.backtrader.com/docu/cerebro/#reference
-
-        """
-        
-        # ----- brain of trading client ----- 
+        """         
 
         self.cerebro = bt.Cerebro(**cerebral_kwargs)
-
-        # ----- body of trading client -----
-
-        if isinstance(apca_api_key, type(None)) or isinstance(apca_api_secret_key, type(None)):
-            load_dotenv()
-            self.api_key = os.getenv("ALPACA_API_KEY")
-            self.api_secret_key = os.getenv("ALPACA_SECRET_KEY")
-
-        else:
-            self.api_key = apca_api_key
-            self.api_secret_key = apca_api_secret_key
-
-        self.trader = TradingClient(self.api_key, self.api_secret_key, paper=apca_paper)
-
-        # ----- loading market data -----
-
-        self.dat = yf.Ticker(self.ticker)
-        print(self.dat.actions)
-
+        self.trader = TradingClient(self.apca_api_key, self.apca_api_secret_key, paper=self.apca_paper)
 
         return 
     
     def __repr__(self) -> str:
         return f"Trading Partner"
     
+    # ==================================================
+    # DEPARTMENT OF THE INTERIOR
+    # ==================================================
 
-    # ===== private functions =====
-
-
-    # ===== public functions =====
-
+    # ==================================================
+    # DEPARTMENT OF THE EXTERIOR
+    # ==================================================
 
     def get_account(self) -> None:
         for a in self.trader.get_account():

@@ -6,6 +6,7 @@ Sam Dawley
 """
 
 
+from src.store import Market
 from src.trade import TradingPartner
 
 # ==================================================
@@ -21,7 +22,10 @@ def main() -> int:
     # ----- trading client -----
 
     trader = TradingPartner()
-    trader.get_account()
+    # trader.get_account()
+
+    mark = Market()
+    print(mark.get_company_profile(symbol="APPL"))
 
 
 
