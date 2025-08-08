@@ -12,11 +12,12 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import GetAssetsRequest
 from alpaca.trading.enums import AssetClass
 
-# brain of trader 
+# trading algorithms
 import backtrader as bt
+from .algo import SMACrossover, TheStrat
+from .store import Market
 
-# trading framework and algorithms
-from src.algo import SimpleMovingAverage
+import yfinance as yf
 
 # ==================================================
 # TRADER
@@ -39,6 +40,9 @@ class TradingPartner:
 
     def __init__(self, **cerebral_kwargs) -> None:
         """
+        Instantiates the trinity:
+            The father (cerebro), son (trader), and holy spirit (market)
+
         Parameters:
         -----------
             **cerebral_kwargs : dict
@@ -48,6 +52,9 @@ class TradingPartner:
 
         self.cerebro = bt.Cerebro(**cerebral_kwargs)
         self.trader = TradingClient(self.apca_api_key, self.apca_api_secret_key, paper=self.apca_paper)
+        self.market = Market()
+
+        dat = yf.Ticker("MSFT")
 
         return 
     
@@ -83,7 +90,11 @@ class TradingPartner:
         """
         return self.cerebro.addstrategy(strat, *args, **kwargs)
             
+    def implement_data(data) -> bool:
 
+        # bt.BacktraderCSVData()
+
+        return
 
 if __name__ == "__main__":
 

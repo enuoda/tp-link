@@ -5,8 +5,6 @@ Sam Dawley
 08/2025
 """
 
-
-from src.store import Market
 from src.trade import TradingPartner
 
 # ==================================================
@@ -24,8 +22,7 @@ def main() -> int:
     trader = TradingPartner()
     # trader.get_account()
 
-    mark = Market()
-    print(mark.get_company_profile(symbol="APPL"))
+    trader.market.get_company_profile("APPL")
 
 
 
