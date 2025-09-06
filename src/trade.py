@@ -54,7 +54,10 @@ class TradingPartner:
         self.trader = TradingClient(self.apca_api_key, self.apca_api_secret_key, paper=self.apca_paper)
         self.market = Market()
 
+        # ----- testing -----
+
         dat = yf.Ticker("MSFT")
+        print(dat.get_earnings_dates())
 
         return 
     
