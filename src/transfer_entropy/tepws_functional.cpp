@@ -30,6 +30,8 @@ Author:
 #include <numeric>
 #include <chrono>
 
+#include "gillespie.hpp"
+
 // Global random number generator for efficiency
 static std::mt19937 g_rng;
 static std::uniform_real_distribution<double> g_uniform_dist(0.0, 1.0);
@@ -126,26 +128,27 @@ void generate_initial_conditions(
     x2_init.resize(num_samples);
     x3_init.resize(num_samples);
     
-    // for (int i = 0; i < num_samples; ++i) {
-    //     x1_init[i] = g_normal_dist(g_rng);
-    //     x2_init[i] = g_normal_dist(g_rng);
-    //     x3_init[i] = g_normal_dist(g_rng);
-    // }
-
-    // parameters for using the tent, ulam maps
-    double epsilon = 0.03; 
-    x1_init[0] = g_normal_dist(g_rng);
-    x2_init[0] = g_normal_dist(g_rng);
-    x3_init[0] = g_normal_dist(g_rng);
-
-    for (int i = 1; i < num_samples; ++i) {
-        x1_init[i] = tent_map(epsilon * x3_init[i - 1] + (1 - epsilon) * x1_init[i]);
-        x2_init[i] = tent_map(epsilon * x1_init[i - 1] + (1 - epsilon) * x2_init[i]);
-        x3_init[i] = tent_map(epsilon * x2_init[i - 1] + (1 - epsilon) * x3_init[i]);
+    for (int i = 0; i < num_samples; ++i) {
+        x1_init[i] = g_normal_dist(g_rng);
+        x2_init[i] = g_normal_dist(g_rng);
+        x3_init[i] = g_normal_dist(g_rng);
     }
+
+    // // parameters for using the tent, ulam maps
+    // double epsilon = 0.03; 
+    // x1_init[0] = g_normal_dist(g_rng);
+    // x2_init[0] = g_normal_dist(g_rng);
+    // x3_init[0] = g_normal_dist(g_rng);
+
+    // for (int i = 1; i < num_samples; ++i) {
+    //     x1_init[i] = tent_map(epsilon * x3_init[i - 1] + (1 - epsilon) * x1_init[i]);
+    //     x2_init[i] = tent_map(epsilon * x1_init[i - 1] + (1 - epsilon) * x2_init[i]);
+    //     x3_init[i] = tent_map(epsilon * x2_init[i - 1] + (1 - epsilon) * x3_init[i]);
+    // }
 
     return;
 }
+
 
 /**
  * @brief Propagate reference dynamics (placeholder for actual dynamics)
@@ -161,7 +164,8 @@ void propagate_reference_dynamics(TrajectoryData& data, int M, int mu, int k_sta
     // using the reference dynamics P0(X1_{k,k+1}, X2_{k,k+1} | X1_{0,k}, X2_{0,k})
     
     for (int k = k_start; k < k_end; ++k) {
-        // Simple Ornstein-Uhlenbeck process as example
+        // EXAMPLE
+        // Simple Ornstein-Uhlenbeck process
         double dt = 0.01;
         double noise_strength = 0.1;
         
@@ -183,6 +187,7 @@ void propagate_reference_dynamics(TrajectoryData& data, int M, int mu, int k_sta
             0.1 * getX3(data.X3_nu, M, mu, k) * dt + 
             noise_strength * g_normal_dist(g_rng) * std::sqrt(dt)
         );
+        // END EXAMPLE
     }
 }
 
@@ -304,13 +309,14 @@ double compute_transfer_entropy(const TrajectoryData& data, int M, int k, int cu
  * @param params
  * @return transfer entropy
  */
-std::pair<double, double> tepws(const TEPWSParams& params) {
+double tepws(const TEPWSParams& params) {
     // Initialize trajectory data
     TrajectoryData data;
     initialize_trajectory_data(data, params);
     
     // (lines 4-6) Initialize trajectory metadata
     // timestep variable and resampling indicator
+    int nu = 0;
     int k = 0; // used for accessing P(X_{2,[0,N]} | X_{1,[0,N]}, X_{3,[0,N]})
     int kappa = params.M2;
 
@@ -324,53 +330,71 @@ std::pair<double, double> tepws(const TEPWSParams& params) {
     int current_M = params.M1;
     bool using_M1 = true;
     
-    while (k < params.N) {
-        if (k == 0) {
-            // STEP 1 (lines 8-10): Generate M1 joint trajectories of
-            // (X_{1,[0,N]}^{nu}, X_{2,[0,N]}^{nu}, X_{3,[0,N]}^{nu})
-            std::vector<double> x1_init, x2_init, x3_init;
-            generate_initial_conditions(x1_init, x2_init, x3_init, params.M1);
-            
-            // Resize trajectory arrays for M1 trajectories
-            data.X1_nu.resize(params.M1 * params.I);
-            data.X2_nu.resize(params.M1 * params.I);
-            data.X3_nu.resize(params.M1 * params.I);
-            
-            // Generate M2 samples of initial conditions X_2^{mu}(0)
-            // from steady-state trajectory; weights in log-scale w^{mu} = 0
-            for (int mu = 0; mu < params.M1; ++mu) {
-                data.weights[mu] = 0.0;
-                getX1(data.X1_nu, params.I, mu, 0) = x1_init[mu];
-                getX2(data.X2_nu, params.I, mu, 0) = x2_init[mu];
-                getX3(data.X3_nu, params.I, mu, 0) = x3_init[mu];
-            }
-        }
-        
-        // (lines 13-21) Check for first resampling 
-        // (lines 27-36) else, check for second resampling
-        if (using_M1 && k >= params.M1 / 2) {
-            resample_trajectories(data, params.I, params.M1, params.M2, true);
-            current_M = params.M2;
-            using_M1 = false;
+    // MAIN LOOP (line 7 onward)
+    // 1. Initializes M1 joint trajectories for X_1, X_2, and X_3
+    // 2. Generates M2 samples of the initial conditions and resamples as necessary
+    // 3. Propagates reference dynamics using reference distribution
+    // 4. Computes transfer entropy for each trajectory indexed by 'nu'
+    while (nu < params.M1) {
+        while (k < params.N) {
+            if (k == 0) {
+                // STEP 1: Propagate M1 trajectories of the X_i's in the full d-dimensional space 
+                // (lines 8-10) Generate M1 joint trajectories of
+                // (X_{1,[0,N]}^{nu}, X_{2,[0,N]}^{nu}, X_{3,[0,N]}^{nu})
+                std::vector<double> x1_init, x2_init, x3_init;
+                generate_initial_conditions(x1_init, x2_init, x3_init, params.M1);
+                
+                // Resize trajectory arrays for M1 trajectories
+                data.X1_nu.resize(params.M1 * params.I);
+                data.X2_nu.resize(params.M1 * params.I);
+                data.X3_nu.resize(params.M1 * params.I);
 
-        } else if (!using_M1 && k >= params.M2 / 2) {
-            resample_trajectories(data, params.I, params.M2, params.M2, false);
+                // // Propagate dynamics for each of the M1 trajectories
+                // // contained in X_1, X_2, and X_3
+                // for (int mu = 0; mu < params.M1; ++mu) {
+                //     propagate_reference_dynamics(data, params.I, mu, k, k + 1);
+                //     data.weights[mu] += compute_log_probability_ratio(data, params.I, mu, k);
+                // } 
+                
+                // Generate M2 samples of initial conditions X_2^{mu}(0)
+                // from steady-state trajectory; weights in log-scale w^{mu} = 0
+                for (int mu = 0; mu < params.M1; ++mu) {
+                    data.weights[mu] = 0.0;
+                    getX1(data.X1_nu, params.I, mu, 0) = x1_init[mu];
+                    getX2(data.X2_nu, params.I, mu, 0) = x2_init[mu];
+                    getX3(data.X3_nu, params.I, mu, 0) = x3_init[mu];
+                }
+            }
+            
+            // (lines 13-21) Check for first resampling 
+            // (lines 27-36) else, check for second resampling
+            if (using_M1 && k >= params.M1 / 2) {
+                resample_trajectories(data, params.I, params.M1, params.M2, true);
+                current_M = params.M2;
+                using_M1 = false;
+
+            } else if (!using_M1 && k >= params.M2 / 2) {
+                resample_trajectories(data, params.I, params.M2, params.M2, false);
+            }
+            
+            // STEP 2: Propagate joint dynamics for each pair of (X_i, X_j) using reference distribution
+            // STEP 3: After each time step, recalculate logarithmic weights w^{mu} via log probability ratio
+            for (int mu = 0; mu < current_M; ++mu) {
+                propagate_reference_dynamics(data, params.I, mu, k, k + 1);
+                data.weights[mu] += compute_log_probability_ratio(data, params.I, mu, k);
+            }
+            
+            // Compute transfer entropy (lines 20, 35)
+            if (using_M1) {
+                data.Tnu_a[k] = compute_transfer_entropy(data, params.I, k, current_M);  // or equation 12
+            } else {
+                data.Tnu_b[k] = compute_transfer_entropy(data, params.I, k, current_M);  // or equation 13
+            }
+            
+            k++;
         }
-        
-        // STEPS 2, 3: Propagate dynamics and update weights
-        for (int mu = 0; mu < current_M; ++mu) {
-            propagate_reference_dynamics(data, params.I, mu, k, k + 1);
-            data.weights[mu] += compute_log_probability_ratio(data, params.I, mu, k);
-        }
-        
-        // Compute transfer entropy (lines 20, 35)
-        if (using_M1) {
-            data.Tnu_a[k] = compute_transfer_entropy(data, params.I, k, current_M);  // or equation 12
-        } else {
-            data.Tnu_b[k] = compute_transfer_entropy(data, params.I, k, current_M);  // or equation 13
-        }
-        
-        k++;
+
+        nu++;
     }
     
     // Final computation (lines 38-41)
@@ -393,16 +417,16 @@ std::pair<double, double> tepws(const TEPWSParams& params) {
         T_final /= count;
     }
     
-    // Normalize by M1 as indicated in line 41
+    // ensemble average over all M1 trajectories
     T_final /= params.M1;
     
-    return std::make_pair(T_final, 0.0);  // Return transfer entropy estimate
+    return T_final;
 }
 
 // Utility function to print algorithm statistics
 void print_algorithm_stats(const TEPWSParams& params) {
     std::cout << "TE-PWS Algorithm Parameters:" << std::endl;
-    std::cout << "\tProcess (continuous if True, else False): " << params.process << std::endl;
+    std::cout << "\tProcess (continuous if true, else discrete): " << params.process << std::endl;
     std::cout << "\tI (timesteps): " << params.I << std::endl;
     std::cout << "\tN (total timesteps): " << params.N << std::endl;
     std::cout << "\tM1 (initial trajectories): " << params.M1 << std::endl;
@@ -431,17 +455,19 @@ int main() {
     }
     
     print_algorithm_stats(params);
+
+    run_gillespie_example();
     
     // Compute transfer entropy
     std::cout << "\nComputing transfer entropy...\n";
     auto start = std::chrono::high_resolution_clock::now();
     
-    auto result = tepws(params);
+    double result = tepws(params);
     
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     
-    std::cout << "Transfer Entropy T_{X1->X2}: " << result.first << "\n";
+    std::cout << "Transfer Entropy T_{X1->X2}: " << result << "\n";
     std::cout << "Computation time: " << duration.count() << " ms\n";
     
     return 0;
