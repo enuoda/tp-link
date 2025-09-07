@@ -21,12 +21,15 @@ public:
         
         // Example: 3-state system with arbitrary transition rates
         if (num_states == 3) {
-            transition_rates[0][1] = 2.0;  // State 0 -> State 1
-            transition_rates[0][2] = 1.5;  // State 0 -> State 2
-            transition_rates[1][0] = 1.0;  // State 1 -> State 0
-            transition_rates[1][2] = 3.0;  // State 1 -> State 2
-            transition_rates[2][0] = 0.5;  // State 2 -> State 0
-            transition_rates[2][1] = 2.5;  // State 2 -> State 1
+            transition_rates[0][0] = 1.0;  // State 0 -> State 0
+            transition_rates[0][1] = 1.5;  // State 0 -> State 1
+            transition_rates[0][2] = 2.0;  // State 0 -> State 2
+            transition_rates[0][1] = 1.5;  // State 1 -> State 0
+            transition_rates[1][1] = 1.0;  // State 1 -> State 1
+            transition_rates[1][2] = 0.5;  // State 1 -> State 2
+            transition_rates[2][0] = 2.5;  // State 2 -> State 0
+            transition_rates[2][1] = 1.0;  // State 2 -> State 1
+            transition_rates[2][2] = 2.0;  // State 2 -> State 2
         }
     }
     
