@@ -17,7 +17,7 @@ References:
 - Das and Wolde, PRL, 135, 107404 (2025):
     https://journals.aps.org/prl/abstract/10.1103/t8z9-ylvg
 
-Authors:
+Author:
 --------
     Sam Dawley
 */
