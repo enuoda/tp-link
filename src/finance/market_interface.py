@@ -1,7 +1,11 @@
 #! /bin/bash
+"""
+List of supported exchange codes:
+    https://docs.google.com/spreadsheets/d/1I3pBxjfXB056-g_JYf_6o3Rns3BV2kMGG1nCatb91ls/edit?pli=1&gid=0#gid=0
 
-# Sam Dawley
-# 08/2025
+Sam Dawley
+08/2025
+"""
 
 import datetime
 from datetime import date
@@ -9,36 +13,26 @@ from pathlib import Path
 import os
 import requests
 import time
-import websocket
 
 import pandas as pd
-
-from dotenv import load_dotenv
-
-# import finnhub
-# from finnhub.exceptions import FinnhubAPIException
 
 import alpaca
 
 class Market:
-    """
-    Class for storing and manipulating market data
-
-    References:
-    -----------
-        - List of supported exchange codes:
-            https://docs.google.com/spreadsheets/d/1I3pBxjfXB056-g_JYf_6o3Rns3BV2kMGG1nCatb91ls/edit?pli=1&gid=0#gid=0
-    """
+    """ Class for storing and manipulating market data """
 
     # ===== INITIALIZATION =====
     
     def __init__(self, polygon_api_key: str = None, polygon_base_url: str = None) -> None:
+        """
+        Parameters:
+        -----------
+        
+        """
+        self.session = requests.Session()
+        
         if isinstance(polygon_api_key, type(None)):
-            try:
-                load_dotenv()
-                self.polygon_api_key = os.getenv("POLYGON_API_KEY")
-            except Exception as e:
-                print(f"Caught Exception trying to load '.env': {e}", flush=True)
+            self.polygon_api_key = os.getenv("POLYGON_API_KEY")
         else:
             self.polygon_api_key = polygon_api_key
 
@@ -46,8 +40,6 @@ class Market:
             self.polygon_base_url = "https://api.polygon.io"
         else:
             self.polygon_base_url = polygon_base_url
-
-        self.session = requests.Session()
 
         self.polygon_params = {
             "adjusted": "true",  # Adjust for splits and dividends
@@ -62,9 +54,7 @@ class Market:
     def __repr__(self) -> str:
         return f"Hello, world!"
     
-    # ==============================
-    # DEPARTMENT OF THE INTERIOR
-    # ==============================
+    # ===== DEPARTMENT OF THE INTERIOR ===== 
 
     def _format_bars_data(self, results):
         """
@@ -101,9 +91,7 @@ class Market:
         
         return df
     
-    # ==============================
-    # DEPARTMENT OF THE EXTERIOR
-    # ==============================
+    # ===== DEPARTMENT OF THE EXTERIOR ===== 
 
     def collect_ticker_data(
             self, 
@@ -111,7 +99,7 @@ class Market:
             start_date: date | str = "2025-01-01",
             end_date: date | str = "2025-06-01",
             interval: str = "day"
-        ):
+        ) -> pd.Series:
         """
         Collect history of certain ticker 
 
@@ -157,7 +145,11 @@ class Market:
         
         return df
 
-def display_sample_data(data, num_rows: int=5):
+# ==================================================
+# AUXILIARY FUNCTIONS
+# ==================================================
+
+def display_sample_data(data: pd.DataFrame, num_rows: int=5) -> None:
     """
     Display sample of the collected data
     """
@@ -174,7 +166,7 @@ def display_sample_data(data, num_rows: int=5):
 
     return
 
-def save_to_csv(data, filename: Path=None) -> None:
+def save_to_csv(data: pd.DataFrame, filename: Path=None) -> None:
     """
     Save data to CSV file
     """

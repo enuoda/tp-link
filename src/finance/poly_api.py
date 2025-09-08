@@ -9,7 +9,6 @@ import os
 import requests
 import time
 
-from dotenv import load_dotenv
 import pandas as pd
 
 class PolygonStockData:
@@ -25,7 +24,6 @@ class PolygonStockData:
 
         if isinstance(api_key, type(None)):
             try:
-                load_dotenv()
                 self.api_key = os.getenv("POLYGON_API_KEY")
             except Exception as e:
                 print(f"Caught Exception trying to load '.env': {e}", flush=True)

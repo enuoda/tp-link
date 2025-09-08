@@ -3,15 +3,9 @@
 # Sam Dawley
 # 08/2025
 
-import datetime
-from datetime import date
-from pathlib import Path
 import os
-import requests
 import sys
-import time
 
-from dotenv import load_dotenv
 import pandas as pd
 
 # trading client
@@ -20,7 +14,7 @@ from alpaca.trading.client import TradingClient
 # trading algorithms
 import backtrader as bt
 # from algo import SMACrossover, TheStrat
-from store import Market
+from market_interface import Market
 
 import yfinance as yf
 
@@ -31,12 +25,6 @@ import yfinance as yf
 
 class TradingPartner:
     """ An interesting docstring """
-
-    try:
-        load_dotenv()
-    except Exception as e:
-        print(f"Caught Execption trying to load .env file: {e}", flush=True)
-        sys.exit(1)
     
     # ===== INITIALIZATION =====
 
@@ -64,7 +52,6 @@ class TradingPartner:
 
         if isinstance(alpaca_api_key, type(None)):
             try:
-                load_dotenv()
                 self.alpaca_api_key = os.getenv("ALPACA_API_KEY")
             except Exception as e:
                 print(f"Caught Exception trying to load '.env': {e}", flush=True)
@@ -73,7 +60,6 @@ class TradingPartner:
 
         if isinstance(alpaca_secret_key, type(None)):
             try:
-                load_dotenv()
                 self.alpaca_secret_key = os.getenv("ALPACA_SECRET_KEY")
             except Exception as e:
                 print(f"Caught Exception trying to load '.env': {e}", flush=True)
