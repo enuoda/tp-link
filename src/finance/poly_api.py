@@ -4,6 +4,7 @@
 # 09/2025
 
 from datetime import datetime, timedelta
+from pathlib import Path
 import os
 import requests
 import time
@@ -16,17 +17,28 @@ class PolygonStockData:
     Class to collect stock data using Polygon.io API
     """
 
-    load_dotenv()
-
-    api_key = os.getenv("POLYGON_API_KEY")
-    base_url = "https://api.polygon.io"
-    session = requests.Session()
-
-    def __init__(self) -> None:
+    def __init__(self, api_key: str = None, base_url: str = None) -> None:
         """
         Initialize with your Polygon API key
         Get free API key from: https://polygon.io/
         """
+
+        if isinstance(api_key, type(None)):
+            try:
+                load_dotenv()
+                self.api_key = os.getenv("POLYGON_API_KEY")
+            except Exception as e:
+                print(f"Caught Exception trying to load '.env': {e}", flush=True)
+        else:
+            self.api_key = api_key
+
+        if isinstance(base_url, type(None)):
+            self.base_url = base_url
+        else:
+            self.base_url = "https://api.polygon.io"
+
+        self.session = requests.Session()
+
         return
     
     def validate_and_authenticate(self):
@@ -108,15 +120,16 @@ class PolygonStockData:
             
             # Print API usage info if available
             if 'request_id' in data:
-                print(f"Request ID: {data['request_id']}")
+                print(f"Request ID: {data['request_id']}", flush=True)
             
             return df
             
         except requests.exceptions.RequestException as e:
-            print(f"Request error: {e}")
+            print(f"Request error: {e}", flush=True)
             return None
+        
         except Exception as e:
-            print(f"Error processing data: {e}")
+            print(f"Error processing data: {e}", flush=True)
             return None
     
     def _format_bars_data(self, results):
@@ -145,8 +158,10 @@ class PolygonStockData:
         
         # Keep only the columns we want
         columns_to_keep = ['Open', 'High', 'Low', 'Close', 'Volume']
+        
         if 'VWAP' in df.columns:
             columns_to_keep.append('VWAP')
+
         if 'Transactions' in df.columns:
             columns_to_keep.append('Transactions')
         
@@ -154,7 +169,7 @@ class PolygonStockData:
         
         return df
     
-    def get_ticker_details(self, ticker):
+    def get_ticker_details(self, ticker: str) -> pd.Series | None:
         """
         Get detailed information about a ticker
         """
@@ -177,7 +192,7 @@ class PolygonStockData:
             print(f"Error fetching ticker details: {e}")
             return None
     
-    def get_previous_close(self, ticker):
+    def get_previous_close(self, ticker: str):
         """
         Get the previous trading day's close price
         """
@@ -269,7 +284,7 @@ def collect_google_data_polygon(start_date: str=None, end_date: str=None, timesp
         print("❌ Failed to collect data. Please check your API key and parameters.")
         return None
 
-def display_sample_data(data, num_rows=5):
+def display_sample_data(data, num_rows: int=5) -> None:
     """
     Display sample of the collected data
     """
@@ -283,6 +298,29 @@ def display_sample_data(data, num_rows=5):
     if len(data) > num_rows * 2:
         print(f"\n=== Last {num_rows} Records ===")
         print(data.tail(num_rows).round(2))
+
+    return
+
+def save_to_csv(data, filename: Path=None) -> None:
+    """
+    Save data to CSV file
+    """
+    if data is None or data.empty:
+        print("No data to save.", flush=True)
+        return
+    
+    if filename is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"GOOGL_polygon_data_{timestamp}.csv"
+    
+    try:
+        data.to_csv(filename)
+        print(f"\nData saved to: {filename}", flush=True)
+
+    except Exception as e:
+        print(f"Error saving data: {e}", flush=True)
+
+    return
 
 
 # Example usage
@@ -304,6 +342,8 @@ def main():
             display_sample_data(data)
         
         print("\n" + "="*60 + "\n")
+
+        save_to_csv(data)
         
         # Example 2: Custom date range
         print("📈 Example 2: Custom date range (last 7 days)")
