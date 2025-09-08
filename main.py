@@ -5,7 +5,7 @@ Sam Dawley
 08/2025
 """
 
-from src.trade import TradingPartner
+from src.finance.trade import TradingPartner
 
 # ==================================================
 # MAIN ROUTINES
