@@ -16,47 +16,46 @@ import time
 
 import pandas as pd
 
-import alpaca
+from polygon import RESTClient
+
 
 class Market:
     """ Class for storing and manipulating market data """
-
-    # ===== INITIALIZATION =====
     
-    def __init__(self, polygon_api_key: str = None, polygon_base_url: str = None) -> None:
+
+    def __init__(self, polygon_api_key: str = None) -> None:
         """
         Parameters:
         -----------
-        
+            polygon_api_key : str
+                Polygon API key, available at "https://api.polygon.io"
         """
-        self.session = requests.Session()
-        
         if isinstance(polygon_api_key, type(None)):
             self.polygon_api_key = os.getenv("POLYGON_API_KEY")
         else:
             self.polygon_api_key = polygon_api_key
 
-        if isinstance(polygon_base_url, type(None)):
-            self.polygon_base_url = "https://api.polygon.io"
-        else:
-            self.polygon_base_url = polygon_base_url
+        print(f"Polygon API secret key: {self.polygon_api_key}", flush=True)
 
+        self.polygon_base_url = "https://api.polygon.io"
+        self.session = requests.Session()
         self.polygon_params = {
             "adjusted": "true",  # Adjust for splits and dividends
             "sort": "asc",       # Sort by timestamp ascending
             "limit": 120,      # Limit results
             "apikey": self.polygon_api_key
         }
+
+        self.client = RESTClient(self.polygon_api_key)
         
         return
     
 
     def __repr__(self) -> str:
         return f"Hello, world!"
-    
-    # ===== DEPARTMENT OF THE INTERIOR ===== 
 
-    def _format_bars_data(self, results):
+
+    def _format_bars_data(self, results: pd.Series) -> pd.DataFrame:
         """
         Convert Polygon API results to pandas DataFrame
         """
@@ -89,9 +88,8 @@ class Market:
         
         df = df[columns_to_keep]
         
-        return df
-    
-    # ===== DEPARTMENT OF THE EXTERIOR ===== 
+        return df 
+
 
     def collect_ticker_data(
             self, 
@@ -99,7 +97,7 @@ class Market:
             start_date: date | str = "2025-01-01",
             end_date: date | str = "2025-06-01",
             interval: str = "day"
-        ) -> pd.Series:
+        ) -> pd.DataFrame:
         """
         Collect history of certain ticker 
 
@@ -114,9 +112,12 @@ class Market:
             interval : str
                 interval over which data is recorded
                 '1d', '1h', '5m', etc.
-        """
 
-        # ----- metadata -----
+        Returns:
+        --------
+            : pd.DataFrame
+                ...
+        """
 
         ticker = ticker.upper()
 
@@ -145,9 +146,29 @@ class Market:
         
         return df
 
+
+
+    def collect_crypto_data(self):
+        tickers = []
+        for t in self.client.list_tickers(
+            market="crypto",
+            active="true",
+            order="asc",
+            limit="100",
+            sort="ticker",
+        ):
+            tickers.append(t)
+        print(tickers)
+
+        return 
+        
+
+
+
 # ==================================================
 # AUXILIARY FUNCTIONS
 # ==================================================
+
 
 def display_sample_data(data: pd.DataFrame, num_rows: int=5) -> None:
     """
@@ -165,6 +186,7 @@ def display_sample_data(data: pd.DataFrame, num_rows: int=5) -> None:
         print(data.tail(num_rows).round(2))
 
     return
+
 
 def save_to_csv(data: pd.DataFrame, filename: Path=None) -> None:
     """
@@ -187,10 +209,12 @@ def save_to_csv(data: pd.DataFrame, filename: Path=None) -> None:
 
     return
 
+
 if __name__ == "__main__":
 
     mark = Market()
-    data = mark.collect_ticker_data("GOOGL")
+    # data = mark.collect_ticker_data("GOOGL")
+    # display_sample_data(data)
+    # save_to_csv(data)
 
-    display_sample_data(data)
-    save_to_csv(data)
+    mark.collect_crypto_data()

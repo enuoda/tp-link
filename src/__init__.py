@@ -3,13 +3,15 @@
 import os
 import sys
 
-from dotenv import load_env
+from dotenv import load_dotenv
 
 from src.finance import algo, store
 
 try:
     load_dotenv()
+
 except Exception as e:
+
     print(f"Caught Exception trying to load '.env'", flush=True)
     sys.exit(1)
 

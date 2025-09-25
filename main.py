@@ -12,6 +12,22 @@ from src.finance.trade import TradingPartner
 # ================================================== 
 
 
+def testing():
+
+    from polygon import RESTClient
+
+    client = RESTClient("qadVu6Vm9lfDpYrHy0e4xNG0wAYrnLQq")
+
+    types = client.get_ticker_types(
+        asset_class="crypto",
+        locale="us"
+        )
+
+    print(types)
+
+return
+
+
 def main() -> int:
     """
     DOCSTRING
