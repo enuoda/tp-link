@@ -1,5 +1,4 @@
 #!/bin/bash
-
 import os
 import sys
 
@@ -20,4 +19,6 @@ REQUIRED_VARS = ["ALPACA_API_KEY", "ALPACA_SECRET_KEY", "POLYGON_API_KEY"]
 MISSING_VARS = [var for var in REQUIRED_VARS if not os.getenv(var)]
 
 if MISSING_VARS:
-    raise ValueError(f"Missing required environment variables: {MISSING_VARS}", flush=True)
+    raise ValueError(
+        f"Missing required environment variables: {MISSING_VARS}", flush=True
+    )

@@ -1,3 +1,4 @@
+#!/bin/bash
 """
 Primary subroutines
 
@@ -9,7 +10,7 @@ from src.finance.trade import TradingPartner
 
 # ==================================================
 # MAIN ROUTINES
-# ================================================== 
+# ==================================================
 
 
 def testing():
@@ -18,14 +19,11 @@ def testing():
 
     client = RESTClient("qadVu6Vm9lfDpYrHy0e4xNG0wAYrnLQq")
 
-    types = client.get_ticker_types(
-        asset_class="crypto",
-        locale="us"
-        )
+    types = client.get_ticker_types(asset_class="crypto", locale="us")
 
     print(types)
 
-return
+    return
 
 
 def main() -> int:
@@ -39,8 +37,6 @@ def main() -> int:
     # trader.get_account()
 
     trader.market.get_company_profile("APPL")
-
-
 
     return 0
 
