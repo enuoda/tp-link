@@ -13,14 +13,20 @@ from pathlib import Path
 import os
 import requests
 import time
+from typing import Generator
 
 import pandas as pd
+from urllib3.exceptions import MaxRetryError 
 
 from polygon import RESTClient
+
+from . import CRYPTO_TICKERS
 
 
 class Market:
     """ Class for storing and manipulating market data """
+
+    __slots__ = ("polygon_api_key", "polygon_base_url", "session", "polygon_params", "client")
     
 
     def __init__(self, polygon_api_key: str = None) -> None:
@@ -35,7 +41,7 @@ class Market:
         else:
             self.polygon_api_key = polygon_api_key
 
-        print(f"Polygon API secret key: {self.polygon_api_key}", flush=True)
+        # print(f"Polygon API secret key: {self.polygon_api_key}", flush=True)
 
         self.polygon_base_url = "https://api.polygon.io"
         self.session = requests.Session()
@@ -91,9 +97,10 @@ class Market:
         return df 
 
 
-    def collect_ticker_data(
-            self, 
-            ticker: str,
+
+    def _single_ticker_data(
+            self,
+            tick: str,
             start_date: date | str = "2025-01-01",
             end_date: date | str = "2025-06-01",
             interval: str = "day"
@@ -118,8 +125,7 @@ class Market:
             : pd.DataFrame
                 ...
         """
-
-        ticker = ticker.upper()
+        tick = tick.upper()
 
         if isinstance(end_date, type(None)):
             end_date = datetime.now().isoformat()
@@ -129,8 +135,9 @@ class Market:
 
         # ----- collect data -----
 
+
         multiplier = 1
-        endpoint = f"/v2/aggs/ticker/{ticker}/range/{multiplier}/{interval}/{start_date}/{end_date}"
+        endpoint = f"/v2/aggs/ticker/{tick}/range/{multiplier}/{interval}/{start_date}/{end_date}"
         
         url = self.polygon_base_url + endpoint
         response = self.session.get(url, params=self.polygon_params)
@@ -141,26 +148,116 @@ class Market:
             response = self.session.get(url, params=self.polygon_params)
         
         response.raise_for_status()
-        data = response.json()
-        df = self._format_bars_data(data["results"])
+        return response.json()
+    
+    def _multiple_ticker_data(
+            self,
+            tick: list,
+            start_date: date | str = "2025-01-01",
+            end_date: date | str = "2025-06-01",
+            interval: str = "day"
+        ) -> pd.DataFrame:
+        """
+        Collect history of certain ticker 
+
+        Parameters:
+        -----------
+            ticker : str
+                ticker of stock
+            start_date : str
+                'YYYY-MM-DD' formatted date
+            end_date : str
+                'YYYY-MM-DD' formatted date
+            interval : str
+                interval over which data is recorded
+                '1d', '1h', '5m', etc.
+
+        Returns:
+        --------
+            : pd.DataFrame
+                ...
+        """
+        data = []
+        for t in tick:
+            tick_history = self._single_ticker_data(t, start_date, end_date, interval)
+            results = tick_history.get("results", None)
+
+            if isinstance(results, pd.DataFrame): 
+                data.append(self._format_bars_data(tick_history))
+
+            elif isinstance(results, type(None)):
+                tick_label = tick_history.get("ticker", None)
+                tick_count = tick_history.get("resultsCount", None)
+                print(f"Ticker {tick_label} has {tick_count} results", flush=True)
+
+
+        for d in data:
+            print(d)
+
+        return
+
+    def collect_ticker_data(
+            self, 
+            ticker: str,
+            start_date: date | str = "2025-01-01",
+            end_date: date | str = "2025-06-01",
+            interval: str = "day"
+        ) -> pd.DataFrame:
+        """
+        Collect history of certain ticker 
+
+        Parameters:
+            ticker : str
+                ticker of stock
+            start_date : str
+                'YYYY-MM-DD' formatted date
+            end_date : str
+                'YYYY-MM-DD' formatted date
+            interval : str
+                interval over which data is recorded
+                '1d', '1h', '5m', etc.
+        """
+        if isinstance(ticker, str):
+            return self._single_ticker_data(ticker, start_date, end_date, interval)
         
-        return df
+        elif isinstance(ticker, list):
+            return self._multiple_ticker_data(ticker, start_date, end_date, interval)
+        
+        elif isinstance(ticker, type(Generator)):
+            print("generator type")
+        
+        return None
 
+    def list_market_tickers(self, market: str) -> Generator[str]:
+        """
+        Generator for listing crypto symbols available with Polygon
+        Elements returned by the generator are Ticker() with attributes:
+            'active' (True), 'cik', 'composite_figi', 'currency_name',
+            'currency_symbol', 'base_currency_symbol', 'base_currency_name',
+            'delisted_utc', 'last_updated_utc', 'locale', 'market',
+            'name', 'primary_exchange', 'share_class_figi', 'ticker',
+            'type', 'source_feed',
 
-
-    def collect_crypto_data(self):
+        """
         tickers = []
+
         for t in self.client.list_tickers(
-            market="crypto",
+            market=market, #"crypto",
             active="true",
             order="asc",
             limit="100",
             sort="ticker",
         ):
-            tickers.append(t)
-        print(tickers)
+            print(t.ticker)
+            # tickers.append(t)
+            
+            try:
+                tickers.append(t)
 
-        return 
+            except MaxRetryError as e:
+                print(f"Caught URLlib Exception: {e}", flush=True)
+                return tickers
+
         
 
 
@@ -213,8 +310,12 @@ def save_to_csv(data: pd.DataFrame, filename: Path=None) -> None:
 if __name__ == "__main__":
 
     mark = Market()
-    # data = mark.collect_ticker_data("GOOGL")
+    crypto_ticker_generator = mark.list_market_tickers("crypto")
+    crypto_tickers = [c.ticker for c in crypto_ticker_generator]
+
+    # data = mark.collect_ticker_data(CRYPTO_TICKERS)
+    # data = mark.collect_ticker_data(crypto_tickers)
+
+
     # display_sample_data(data)
     # save_to_csv(data)
-
-    mark.collect_crypto_data()

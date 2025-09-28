@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from src.finance import algo, store
 
 try:
+    print("loading dotenv()...", flush=True)
     load_dotenv()
 
 except Exception as e:
