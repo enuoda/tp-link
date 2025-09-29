@@ -131,7 +131,7 @@ def retrieve_crypto_data(
 
 class CryptoTrader:
 
-    __slots__ = "client"
+    __slots__ = ("client", )
 
     def __init__(self) -> None:
         self.client = TradingClient(
@@ -193,6 +193,7 @@ class CryptoTrader:
 
     def get_all_orders(self, symbol: str) -> None:
         # get a list of orders including closed (e.g. filled) orders by specifying symbol
+        print("Get all orders...", flush=True)
         req = GetOrdersRequest(status=QueryOrderStatus.ALL, symbols=[symbol])
         return self.client.get_orders(req)
 
@@ -716,10 +717,10 @@ if __name__ == "__main__":
         limit=limit,
     )
 
-    # print(ohlcv.shape)
-    # print(ohlcv[0, :10, :10])
-    # # print(df[["open", "high", "low", "close", "vwap"]])
-    # # print(df.columns.values)
-    # print(df.loc[sort_symbols[0]])
+    # plot_df(df)
 
-    plot_df(df)
+    ct = CryptoTrader()
+
+    ct.get_all_orders("BTC/USD")
+
+
