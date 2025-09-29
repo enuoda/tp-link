@@ -11,7 +11,7 @@ References
 # stdlib
 from datetime import datetime, timedelta
 import os
-from typing import List
+from typing import List, Tuple
 from zoneinfo import ZoneInfo
 
 # numerics
@@ -58,15 +58,6 @@ from . import CRYPTO_TICKERS, BTC_PAIRS, USDT_PAIRS, USDC_PAIRS, USD_PAIRS
 
 
 # ==================================================
-# MISCELLANEOUS
-# ==================================================
-
-
-def misc():
-    return
-
-
-# ==================================================
 # FUNCTIONS FOR INTERACTING WITH THE MARKET
 # ==================================================
 
@@ -86,6 +77,51 @@ def get_historical_bars(
         limit=None,
     )
     return client.get_crypto_bars(req).df
+
+
+def retrieve_crypto_data(
+    symbols: str | List[str],
+    start_time,
+    end_time,
+    frequency: TimeFrameUnit = TimeFrame(1, TimeFrameUnit.Hour),
+    limit: int = None,
+) -> Tuple[pd.DataFrame, np.ndarray, List[str]]:
+    """
+    Retrieve crypto data and store in user-friendly manner
+
+    Returns:
+        df : pd.DataFrame
+            columns: ['open' 'high' 'low' 'close' 'volume' 'trade_count' 'vwap']
+            n_columns := number of columns in this dataframe
+        ohlcv : jnp.ndarray, shape (n_symbols, n_columns, n_times)
+            symbols are indexed in the order they appear in 'sorted_symbols'
+        sorted_symbols : List[str]
+            symbols in DataFrame not necessarily ordered in same the
+            same way they are ordered in 'symbols' parameter
+            'sorted_symbols' provides this ordering, i.e., symbol corresponding
+            to sorted_symbols[i] corresponds to data in ohlcv[i]
+    """
+    client = CryptoHistoricalDataClient()
+
+    req = CryptoBarsRequest(
+        symbol_or_symbols=symbols,
+        timeframe=frequency,
+        start=start_time,
+        end=end_time,
+        limit=limit,
+    )
+
+    data = client.get_crypto_bars(req).df
+
+    # ----- make numpy-friendly -----
+
+    sorted_symbols = data.index.get_level_values("symbol").unique()
+    n_timestamps = len(data.loc[symbols[0]])
+    n_columns = len(data.columns)
+    ohlcv = data.values.reshape(len(symbols), n_timestamps, n_columns).transpose(0, 2, 1)
+
+    # squeeze to remove redundant outer dimension if only one symbol is requested
+    return data, np.squeeze(ohlcv), sorted_symbols
 
 
 # ==================================================
@@ -629,35 +665,61 @@ def compare_symbols_normalized(
     return
 
 
-def main():
+# def main():
 
-    # No API key required for crypto data
-    client = CryptoHistoricalDataClient()
-    start_date = datetime.now(ZoneInfo("America/New_York")) - timedelta(days=100)
-    symbols = ["BTC/USD"]
-    symbols = USDT_PAIRS
+#     # No API key required for crypto data
+#     client = CryptoHistoricalDataClient()
+#     start_date = datetime.now(ZoneInfo("America/New_York")) - timedelta(days=100)
+#     symbols = USDT_PAIRS
 
-    # ===== collecting data =====
+#     # ===== collecting data =====
 
-    df = get_historical_bars(client, symbols, start=start_date)
-    plot_df(df)
+#     df = get_historical_bars(client, symbols, start=start_date)
+#     plot_df(df)
 
-    # compare_symbols(df, symbols)
-    compare_symbols_normalized(df, symbols)
+#     # compare_symbols(df, symbols)
+#     compare_symbols_normalized(df, symbols)
 
-    # request_params = CryptoBarsRequest(
-    #     symbol_or_symbols=["BTC/USD"],
-    #     timeframe=TimeFrame.Day,
-    #     start=datetime(2022, 9, 1),
-    #     end=datetime(2025, 9, 7)
-    # )
-
-    # # Retrieve daily bars for Bitcoin in a DataFrame and printing it
-    # btc_bars = client.get_crypto_bars(request_params)
-    # result = btc_bars.df
-
-    return
+#     return
 
 
 if __name__ == "__main__":
-    main()
+
+    # ----- useful constants -----
+
+    NOW = datetime.now(ZoneInfo("America/New_York"))
+    PAST_N_YEARS = dict((n, timedelta(days=n * 365)) for n in range(10))
+
+    TIME_FRAMES = {
+        "min": TimeFrame(amount=1, unit=TimeFrameUnit.Minute),
+        "hour": TimeFrame(amount=1, unit=TimeFrameUnit.Hour),
+        "day": TimeFrame(amount=1, unit=TimeFrameUnit.Day),
+        "week": TimeFrame(amount=1, unit=TimeFrameUnit.Week),
+        "month": TimeFrame(amount=1, unit=TimeFrameUnit.Month),
+    }
+
+    # ----- specify data to be retrieved -----
+
+    # symbols = ["BTC/USD"]
+    symbols = USDT_PAIRS
+
+    start_time = NOW - PAST_N_YEARS[2]
+    end_time = NOW
+    frequency = TIME_FRAMES["day"]
+    limit = None  # no limit to number of data points to store
+
+    df, ohlcv, sort_symbols = retrieve_crypto_data(
+        symbols=symbols,
+        start_time=start_time,
+        end_time=end_time,
+        frequency=frequency,
+        limit=limit,
+    )
+
+    # print(ohlcv.shape)
+    # print(ohlcv[0, :10, :10])
+    # # print(df[["open", "high", "low", "close", "vwap"]])
+    # # print(df.columns.values)
+    # print(df.loc[sort_symbols[0]])
+
+    plot_df(df)
