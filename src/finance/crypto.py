@@ -9,9 +9,9 @@ References
 """
 
 # stdlib
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
-from typing import List, Tuple
+from typing import Any, Dict, List, override, Tuple, Union
 from zoneinfo import ZoneInfo
 
 # numerics
@@ -24,37 +24,33 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 
 # trading
-from alpaca.data.live.crypto import CryptoDataStream
 from alpaca.data.historical.crypto import CryptoHistoricalDataClient
-from alpaca.data.requests import (
-    CryptoBarsRequest,
-    CryptoQuoteRequest,
-    CryptoTradesRequest,
-    CryptoLatestQuoteRequest,
-)
+from alpaca.data.requests import CryptoBarsRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
 from alpaca.trading.enums import (
     AssetClass,
     AssetStatus,
+    OrderClass,
     OrderSide,
     OrderType,
-    TimeInForce,
     QueryOrderStatus,
+    PositionIntent,
+    TimeInForce
 )
 from alpaca.trading.client import TradingClient
+from alpaca.trading.models import ClosePositionResponse, Order, Position
 from alpaca.trading.requests import (
     GetAssetsRequest,
-    MarketOrderRequest,
-    LimitOrderRequest,
-    StopLimitOrderRequest,
     GetOrdersRequest,
-    ClosePositionRequest,
+    MarketOrderRequest,
+    OptionLegRequest,
+    OrderRequest,
+    StopLossRequest,
+    TakeProfitRequest,
 )
-from alpaca.trading.stream import TradingStream
 
-
-from . import CRYPTO_TICKERS, BTC_PAIRS, USDT_PAIRS, USDC_PAIRS, USD_PAIRS
+# from . import ORDER_SIDES, ORDER_STATUS, ORDER_TYPES, TIME_IN_FORCE
 
 
 # ==================================================
@@ -129,78 +125,184 @@ def retrieve_crypto_data(
 # ==================================================
 
 
-class CryptoTrader:
+class CryptoTrader(TradingClient):
+    """
+    References:
+        Order requests
+            https://alpaca.markets/sdks/python/api_reference/trading/requests.html#orderrequest
+    """
 
-    __slots__ = ("client", )
+    __slots__ = ("client", "acct", "acct_config")
 
-    def __init__(self) -> None:
+    def __init__(self, paper: bool = True) -> None:
         self.client = TradingClient(
             api_key=os.getenv("ALPACA_API_KEY"),
             secret_key=os.getenv("ALPACA_SECRET_KEY"),
             url_override=os.getenv("ALPACA_API_BASE_URL"),
-            paper=True,
+            paper=paper,
         )
 
         # check trading account
         # You can check definition of each field in the following documents
         # ref. https://docs.alpaca.markets/docs/account-plans
         # ref. https://docs.alpaca.markets/reference/getaccount-1
-        acct = self.client.get_account()
+        self.acct = self.client.get_account()
 
         # check account configuration
         # ref. https://docs.alpaca.markets/reference/getaccountconfig-1
-        acct_config = self.client.get_account_configurations()
+        self.acct_config = self.client.get_account_configurations()
 
     def _list_crypto_assets(self):
         # get list of crypto pairs
         # ref. https://docs.alpaca.markets/reference/get-v2-assets-1
         req = GetAssetsRequest(asset_class=AssetClass.CRYPTO, status=AssetStatus.ACTIVE)
         return self.get_all_assets(req)
+    
+        # def submit_stop_order(self, symbol: str, amt: float, limit_price: float) -> None:
+    #     req = StopOrderRequest(
+    #         symbol=symbol,
+    #         notational=amt,
+    #         limit_price=limit_price,
+    #         side=ORDER_SIDES["buy"],
+    #         type=ORDER_TYPES["limit"],
+    #         time_in_force=TIME_IN_FORCE["gtc"],
+    #     )
+    #     return self.client.submit_order(req)
 
-    def submit_market_order(self, symbol: str, amt: float) -> None:
+    # def submit_limit_order(self, symbol: str, amt: float, limit_price: float) -> None:
+    #     req = LimitOrderRequest(
+    #         symbol=symbol,
+    #         notational=amt,
+    #         limit_price=limit_price,
+    #         side=ORDER_SIDES["buy"],
+    #         type=ORDER_TYPES["limit"],
+    #         time_in_force=TIME_IN_FORCE["gtc"],
+    #     )
+    #     return self.client.submit_order(req)
+
+    # def submit_stop_limit_order(
+    #     self, symbol: str, amt: float, limit_price: float, stop_price: float
+    # ) -> None:
+    #     req = StopLimitOrderRequest(
+    #         symbol=symbol,
+    #         notational=amt,
+    #         side=ORDER_SIDES["buy"],
+    #         time_in_force=TIME_IN_FORCE["gtc"],
+    #         limit_price=limit_price,
+    #         stop_price=stop_price,
+    #     )
+    #     return self.client.submit_order(req)
+
+    def construct_market_order(
+        self,
+        symbol: str,
+        qty: float,
+        notional: float,
+        side: OrderSide,
+        order_type: OrderType,
+        time_in_force: TimeInForce = TimeInForce.GTC,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        order_class: OrderClass = OrderClass.SIMPLE,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None
+    ) -> Order:
+        
+        # ----- convert args to alpaca types -----
+
         req = MarketOrderRequest(
             symbol=symbol,
-            notational=amt,  # specify $(amt) in USD
-            side=OrderSide.BUY,
-            type=OrderType.MARKET,
-            time_in_force=TimeInForce.GTC,
+            qty=qty,
+            notional=notional,
+            side=side,
+            type=order_type,
+            time_in_force=time_in_force,
+            extended_hours=extended_hours,
+            client_order_id=client_order_id,
+            order_class=order_class,
+            legs=legs,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            position_intent=position_intent
         )
-        return self.client.submit_order(req)
 
-    def submit_limit_order(self, symbol: str, amt: float, limit_price: float) -> None:
-        req = LimitOrderRequest(
-            symbol=symbol,
-            notational=amt,
-            limit_price=limit_price,
-            side=OrderSide.BUY,
-            type=OrderType.LIMIT,
-            time_in_force=TimeInForce.GTC,
-        )
-        return self.client.submit_order(req)
+        return req
 
-    def stop_limit_order(
-        self, symbol: str, amt: float, limit_price: float, stop_price: float
+    # ===== gathering information on positions =====
+
+    def get_all_positions(self) -> Union[List[Position], Dict[str, Any]]:
+        return super().get_all_positions()
+    
+    def get_open_position(self, symbol_or_asset_id: str) -> Union[Position, Dict[str, Any]]:
+        return super().get_all_positions(symbol_or_asset_id)
+    
+    def close_all_positions(self, cancel_orders: bool = False) -> Union[List[ClosePositionResponse], Dict[str, Any]]:
+        return super().get_all_positions(cancel_orders)
+
+    def close_position(self, symbol_or_asset_id: str) -> Union[Order, Dict[str, Any]]:
+        return super().get_all_positions(symbol_or_asset_id)
+    
+    # ===== submitting market orders =====
+
+    def construct_order_request(self, kind: str, params: dict) -> OrderRequest:
+        if kind.upper() == "MARKET":
+            pass
+        
+        order = 
+        # OrderRequest()
+        return order
+
+    @override
+    def submit_order(self, order_data: OrderRequest) -> Union[Order, Dict[str, Any]]:
+        return super().submit_order(order_data)
+    
+    # def get_all_orders(self, symbol: str) -> None:
+    #     # get a list of orders including closed (e.g. filled) orders by specifying symbol
+    #     print("Get all orders...", flush=True)
+    #     req = GetOrdersRequest(status=QueryOrderStatus.ALL, symbols=[symbol])
+    #     return self.client.get_orders(req)
+
+    # def get_open_orders(self, symbol: str) -> None:
+    #     print("Get open orders...", flush=True)
+    #     req = GetOrdersRequest(
+    #         status=QueryOrderStatus.OPEN,
+    #         symbols=[symbol]
+    #     )
+
+    #     open_orders = self.client.get_orders(req)
+    #     return open_orders
+
+    def query_orders(
+        self,
+        status: QueryOrderStatus,
+        limit: int = None,
+        after: datetime = None,
+        until: datetime = None,
+        direction: str = None,
+        nested: bool = None,
+        side: OrderSide = None,
+        symbol: str | List[str] = None,
     ) -> None:
-        req = StopLimitOrderRequest(
+        """
+        Reference:
+            https://alpaca.markets/sdks/python/api_reference/trading/requests.html#getordersrequest
+        """
+        req = GetOrdersRequest(
+            status=status,
+            limit=limit,
+            after=after,
+            until=until,
+            direction=direction,
+            nested=nested,
+            side=side,
             symbol=symbol,
-            notational=amt,
-            side=OrderSide.BUY,
-            time_in_force=TimeInForce.GTC,
-            limit_price=limit_price,
-            stop_price=stop_price,
         )
-        return self.client.submit_order(req)
 
-    def get_all_orders(self, symbol: str) -> None:
-        # get a list of orders including closed (e.g. filled) orders by specifying symbol
-        print("Get all orders...", flush=True)
-        req = GetOrdersRequest(status=QueryOrderStatus.ALL, symbols=[symbol])
-        return self.client.get_orders(req)
+        order = self.client.get_orders(req)
 
-    def get_open_orders(self, symbol: str) -> None:
-        # see all open orders
-        req = GetOrdersRequest(status=QueryOrderStatus.OPEN, symbols=[symbol])
-        return self.client.get_orders(req)
+        return order
 
     def cancel_open_orders(self) -> None:
         self.client.cancel_orders()
@@ -686,24 +788,12 @@ def compare_symbols_normalized(
 
 if __name__ == "__main__":
 
-    # ----- useful constants -----
+    from . import CRYPTO_TICKERS, BTC_PAIRS, USDT_PAIRS, USDC_PAIRS, USD_PAIRS
+    from . import NOW, PAST_N_YEARS, TIME_FRAMES
 
-    NOW = datetime.now(ZoneInfo("America/New_York"))
-    PAST_N_YEARS = dict((n, timedelta(days=n * 365)) for n in range(10))
+    # ===== specify data to be retrieved =====
 
-    TIME_FRAMES = {
-        "min": TimeFrame(amount=1, unit=TimeFrameUnit.Minute),
-        "hour": TimeFrame(amount=1, unit=TimeFrameUnit.Hour),
-        "day": TimeFrame(amount=1, unit=TimeFrameUnit.Day),
-        "week": TimeFrame(amount=1, unit=TimeFrameUnit.Week),
-        "month": TimeFrame(amount=1, unit=TimeFrameUnit.Month),
-    }
-
-    # ----- specify data to be retrieved -----
-
-    # symbols = ["BTC/USD"]
     symbols = USDT_PAIRS
-
     start_time = NOW - PAST_N_YEARS[2]
     end_time = NOW
     frequency = TIME_FRAMES["day"]
@@ -721,6 +811,13 @@ if __name__ == "__main__":
 
     ct = CryptoTrader()
 
-    ct.get_all_orders("BTC/USD")
+    ct.submit_market_order("AAVE/USD", None, 50, "buy", "market")
 
+    # print(ct.acct)
+    # print(ct.acct_config)
 
+    # tmp = ct.get_all_orders("BTC/USD")
+    # print(tmp)
+
+    # tmp = ct.get_open_orders("BTC/USD")
+    # print(tmp)

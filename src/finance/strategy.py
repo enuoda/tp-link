@@ -1,5 +1,4 @@
 #! /bin/bash
-
 """
 Algorithms to use with our trading partner
 All are implemented with the backtrader API
@@ -49,14 +48,14 @@ class SMACrossover(bt.Strategy):
     params = (("fast", 10), ("slow", 30), ("_moveav", btind.MovAv.SMA))
 
     def __init__(self):
-        """ Conception """
+        """Conception"""
         self.sma_fast = self.p_moveav(period=self.p_fast)
         self.sma_slow = self.p_moveav(period=self.p.slow)
 
         self.buy_signal = btind.CrossOver(self.sma_fast, self.sma_slow)
 
     def next(self):
-        """ Adulthood """
+        """Adulthood"""
         if self.position.size:
             if self.buy_signal < 0:
                 self.sell()
@@ -81,7 +80,7 @@ class MFI(bt.Indicator):
 
     """
 
-    lines = ('mfi',)
+    lines = ("mfi",)
     params = {"period": 14}
 
     def __init__(self) -> None:
@@ -106,7 +105,7 @@ class StochRSI(bt.Indicator):
         https://www.backtrader.com/docu/concepts/?h=lines#lines
     """
 
-    lines = ('stochrsi',)
+    lines = ("stochrsi",)
     params = {"period": 14, "pperiod": None}
 
     def __init__(self) -> None:
@@ -156,11 +155,12 @@ class CustomStrategy(bt.Strategy):
     @override
     def nexstart(self):
         """
-        This method will be called once, to mark 
+        This method will be called once, to mark
         the switch from prenext to next
         The default behavior is to call next
         """
         return super().nexstart()
+
     @override
     def prenext(self):
         """
@@ -169,48 +169,56 @@ class CustomStrategy(bt.Strategy):
         start executing
         """
         return super().prenext()
+
     @override
     def start(self):
         """
         Called right before the backtesting is about to be started.
         """
         return super().start()
+
     @override
     def stop(self):
         """
         Called right before the backtesting is about to be stopped
         """
         return super().stop()
+
     @override
     def notify_order(self, order) -> int:
         """
         Receives an order whenever there has been a change in one
         """
         return super.notify_order(order)
+
     @override
     def notify_trade(self, trade):
         """
         Receives a trade whenever there has been a change in one
         """
         return super().notify_trade(trade)
+
     @override
     def notify_cashvalue(self, cash, value):
         """
         Receives the current fund value, value status of the strategy’s broker
         """
         return super().notify_cashvalue(cash, value)
+
     @override
     def notify_fund(self, cash, value, fundvalue, shares):
         """
         Receives the current cash, value, fundvalue and fund shares
         """
         return super().notify_fund(cash, value, fundvalue, shares)
+
     @override
     def notify_store(self, msg, *args, **kwargs):
         """
         Receives a notification from a store provider
         """
         return super().notify_store(msg, *args, **kwargs)
+
     @override
     def buy(
         self,
@@ -243,6 +251,7 @@ class CustomStrategy(bt.Strategy):
             transmit,
             **kwargs,
         )
+
     @override
     def sell(
         self,
@@ -275,12 +284,15 @@ class CustomStrategy(bt.Strategy):
             transmit,
             **kwargs,
         )
+
     @override
     def close(self, data: int = None, size: int = None, **kwargs):
         return super().close(data, size, **kwargs)
+
     @override
     def cancel(self, order):
         return super().cancel(order)
+
     @override
     def buy_bracket(
         self,
@@ -321,10 +333,11 @@ class CustomStrategy(bt.Strategy):
             limitargs,
             **kwargs,
         )
+
     @override
     def sell_bracket(
         self,
-        data: int=None,
+        data: int = None,
         size=None,
         price=None,
         plimit=None,
@@ -361,36 +374,47 @@ class CustomStrategy(bt.Strategy):
             limitargs,
             **kwargs,
         )
+
     @override
     def order_target_size(self, data=None, target=0, **kwargs):
         return super().order_target_size(data, target, **kwargs)
+
     @override
     def order_target_value(self, data=None, target=0, price=None, **kwargs):
         return super().order_target_value(data, target, price, **kwargs)
+
     @override
     def order_target_percent(self, data=None, target=0, **kwargs):
         return super().order_target_percent(data, target, **kwargs)
+
     @override
     def getsizer(self):
         return super().getsizer()
+
     @override
     def setsizer(self, sizer):
         return super().setsizer(sizer)
+
     @override
     def getsizing(self, data=None, isbuy=True):
         return super().getsizing(data, isbuy)
+
     @override
     def getposition(self, data=None, broker=None):
         return super().getposition(data, broker)
+
     @override
     def getpositionbyname(self, name=None, broker=None):
         return super().getpositionbyname(name, broker)
+
     @override
     def getdatanames(self):
         return super().getdatanames()
+
     @override
     def getdatabyname(self, name):
         return super().getdatabyname(name)
+
     @override
     def add_timer(
         self,
@@ -421,6 +445,7 @@ class CustomStrategy(bt.Strategy):
             *args,
             **kwargs,
         )
+
     @override
     def notify_timer(self, timer, when, *args, **kwargs):
         return super().notify_timer(timer, when, *args, **kwargs)
