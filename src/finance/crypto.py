@@ -10,6 +10,7 @@ References
 
 # stdlib
 from datetime import datetime
+from itertools import zip_longest
 import os
 from typing import Any, Dict, List, override, Tuple, Union
 from zoneinfo import ZoneInfo
@@ -34,24 +35,29 @@ from alpaca.trading.enums import (
     OrderClass,
     OrderSide,
     OrderType,
-    QueryOrderStatus,
     PositionIntent,
-    TimeInForce
+    QueryOrderStatus,
+    TimeInForce,
 )
 from alpaca.trading.client import TradingClient
-from alpaca.trading.models import ClosePositionResponse, Order, Position
+from alpaca.trading.models import Asset, ClosePositionResponse, Order, Position
 from alpaca.trading.requests import (
     GetAssetsRequest,
     GetOrdersRequest,
+    LimitOrderRequest,
     MarketOrderRequest,
     OptionLegRequest,
     OrderRequest,
+    StopLimitOrderRequest,
     StopLossRequest,
+    StopOrderRequest,
     TakeProfitRequest,
+    TrailingStopOrderRequest,
 )
 
-# from . import ORDER_SIDES, ORDER_STATUS, ORDER_TYPES, TIME_IN_FORCE
+from . import CRYPTO_TICKERS
 
+N_CPUS = os.cpu_count()
 
 # ==================================================
 # FUNCTIONS FOR INTERACTING WITH THE MARKET
@@ -132,7 +138,7 @@ class CryptoTrader(TradingClient):
             https://alpaca.markets/sdks/python/api_reference/trading/requests.html#orderrequest
     """
 
-    __slots__ = ("client", "acct", "acct_config")
+    __slots__ = ("client", "acct", "acct_config", "crypto_universe")
 
     def __init__(self, paper: bool = True) -> None:
         self.client = TradingClient(
@@ -152,127 +158,495 @@ class CryptoTrader(TradingClient):
         # ref. https://docs.alpaca.markets/reference/getaccountconfig-1
         self.acct_config = self.client.get_account_configurations()
 
-    def _list_crypto_assets(self):
-        # get list of crypto pairs
-        # ref. https://docs.alpaca.markets/reference/get-v2-assets-1
-        req = GetAssetsRequest(asset_class=AssetClass.CRYPTO, status=AssetStatus.ACTIVE)
-        return self.get_all_assets(req)
-    
-        # def submit_stop_order(self, symbol: str, amt: float, limit_price: float) -> None:
-    #     req = StopOrderRequest(
-    #         symbol=symbol,
-    #         notational=amt,
-    #         limit_price=limit_price,
-    #         side=ORDER_SIDES["buy"],
-    #         type=ORDER_TYPES["limit"],
-    #         time_in_force=TIME_IN_FORCE["gtc"],
-    #     )
-    #     return self.client.submit_order(req)
+        self.crypto_universe = CRYPTO_TICKERS
 
-    # def submit_limit_order(self, symbol: str, amt: float, limit_price: float) -> None:
-    #     req = LimitOrderRequest(
-    #         symbol=symbol,
-    #         notational=amt,
-    #         limit_price=limit_price,
-    #         side=ORDER_SIDES["buy"],
-    #         type=ORDER_TYPES["limit"],
-    #         time_in_force=TIME_IN_FORCE["gtc"],
-    #     )
-    #     return self.client.submit_order(req)
+    def print_account_summary(self):
+        """Print account summary"""
+        print("Account Summary:")
+        print(f"\t- Cash: {self.acct.cash}")
+        print(f"\t- Buying Power: {self.acct.buying_power}")
+        print(f"\t- Equity: {self.acct.equity}")
+        print(f"\t- Portfolio Value: {self.acct.portfolio_value}")
 
-    # def submit_stop_limit_order(
-    #     self, symbol: str, amt: float, limit_price: float, stop_price: float
-    # ) -> None:
-    #     req = StopLimitOrderRequest(
-    #         symbol=symbol,
-    #         notational=amt,
-    #         side=ORDER_SIDES["buy"],
-    #         time_in_force=TIME_IN_FORCE["gtc"],
-    #         limit_price=limit_price,
-    #         stop_price=stop_price,
-    #     )
-    #     return self.client.submit_order(req)
+    @override
+    def submit_order(self, order_data: OrderRequest) -> Union[Order, Dict[str, Any]]:
+        return super().submit_order(order_data)
 
-    def construct_market_order(
+    # ==================================================
+    # submitting MARKET orders
+    # ==================================================
+
+    def buy_market_order(
         self,
         symbol: str,
-        qty: float,
-        notional: float,
-        side: OrderSide,
-        order_type: OrderType,
-        time_in_force: TimeInForce = TimeInForce.GTC,
+        notional: float = None,  # quantity in # of shares
+        qty: float = None,  # quantity in USD
+        # side: OrderSide = OrderSide.BUY,
+        # type: OrderType = OrderType.MARKET,
+        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        order_class: OrderClass = OrderClass.SIMPLE,
+        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
-        position_intent: PositionIntent = None
-    ) -> Order:
-        
-        # ----- convert args to alpaca types -----
+        position_intent: PositionIntent = None,
+    ) -> None:
+        """Submit market order"""
+        if isinstance(notional, type(None)) and isinstance(qty, type(None)):
+            raise ValueError("Either notional or qty must be provided")
 
         req = MarketOrderRequest(
             symbol=symbol,
-            qty=qty,
             notional=notional,
-            side=side,
-            type=order_type,
-            time_in_force=time_in_force,
+            qty=qty,
+            side=OrderSide.BUY,
+            type=OrderType.MARKET,
+            time_in_force=TimeInForce.GTC,
             extended_hours=extended_hours,
             client_order_id=client_order_id,
-            order_class=order_class,
+            order_class=OrderClass.SIMPLE,
             legs=legs,
             take_profit=take_profit,
             stop_loss=stop_loss,
-            position_intent=position_intent
+            position_intent=position_intent,
         )
+        return self.client.submit_order(req)
 
-        return req
+    def sell_market_order(
+        self,
+        symbol: str,
+        notional: float = None,  # quantity in # of shares
+        qty: float = None,  # quantity in USD
+        # side: OrderSide = OrderSide.BUY,
+        # type: OrderType = OrderType.MARKET,
+        # time_in_force: TimeInForce = TimeInForce.GTC,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        # order_class: OrderClass = OrderClass.SIMPLE,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+    ) -> None:
+        """Submit market order"""
+        if isinstance(notional, type(None)) and isinstance(qty, type(None)):
+            raise ValueError("Either notional or qty must be provided")
+
+        req = MarketOrderRequest(
+            symbol=symbol,
+            notional=notional,
+            qty=qty,
+            side=OrderSide.SELL,
+            type=OrderType.MARKET,
+            time_in_force=TimeInForce.GTC,
+            extended_hours=extended_hours,
+            client_order_id=client_order_id,
+            order_class=OrderClass.SIMPLE,
+            legs=legs,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            position_intent=position_intent,
+        )
+        return self.client.submit_order(req)
+
+    # ==================================================
+    # submitting LIMIT orders
+    # ==================================================
+
+    def buy_limit_order(
+        self,
+        symbol: str,
+        notional: float = None,  # quantity in # of shares
+        qty: float = None,  # quantity in USD
+        # side: OrderSide = OrderSide.BUY,
+        # type: OrderType = OrderType.MARKET,
+        # time_in_force: TimeInForce = TimeInForce.GTC,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        # order_class: OrderClass = OrderClass.SIMPLE,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+        limit_price: float = None,
+    ) -> None:
+        """Submit market order"""
+        if isinstance(notional, type(None)) and isinstance(qty, type(None)):
+            raise ValueError("Either notional or qty must be provided")
+
+        req = LimitOrderRequest(
+            symbol=symbol,
+            notional=notional,
+            qty=qty,
+            side=OrderSide.BUY,
+            type=OrderType.LIMIT,
+            time_in_force=TimeInForce.GTC,
+            extended_hours=extended_hours,
+            client_order_id=client_order_id,
+            order_class=OrderClass.SIMPLE,
+            legs=legs,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            position_intent=position_intent,
+            limit_price=limit_price,
+        )
+        return self.client.submit_order(req)
+
+    def sell_limit_order(
+        self,
+        symbol: str,
+        notional: float = None,  # quantity in # of shares
+        qty: float = None,  # quantity in USD
+        # side: OrderSide = OrderSide.BUY,
+        # type: OrderType = OrderType.MARKET,
+        # time_in_force: TimeInForce = TimeInForce.GTC,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        # order_class: OrderClass = OrderClass.SIMPLE,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+        limit_price: float = None,
+    ) -> None:
+        """Submit market order"""
+        if isinstance(notional, type(None)) and isinstance(qty, type(None)):
+            raise ValueError("Either notional or qty must be provided")
+
+        req = LimitOrderRequest(
+            symbol=symbol,
+            notional=notional,
+            qty=qty,
+            side=OrderSide.SELL,
+            type=OrderType.LIMIT,
+            time_in_force=TimeInForce.GTC,
+            extended_hours=extended_hours,
+            client_order_id=client_order_id,
+            order_class=OrderClass.SIMPLE,
+            legs=legs,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            position_intent=position_intent,
+            limit_price=limit_price,
+        )
+        return self.client.submit_order(req)
+
+    # ==================================================
+    # submitting STOP ORDERS orders
+    # ==================================================
+
+    def buy_stop_order(
+        self,
+        symbol: str,
+        stop_price: float,
+        notional: float = None,  # quantity in # of shares
+        qty: float = None,  # quantity in USD
+        # side: OrderSide = OrderSide.BUY,
+        # type: OrderType = OrderType.MARKET,
+        # time_in_force: TimeInForce = TimeInForce.GTC,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        # order_class: OrderClass = OrderClass.SIMPLE,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+    ) -> None:
+        """Submit market order"""
+        if isinstance(notional, type(None)) and isinstance(qty, type(None)):
+            raise ValueError("Either notional or qty must be provided")
+
+        req = StopOrderRequest(
+            symbol=symbol,
+            stop_price=stop_price,
+            notional=notional,
+            qty=qty,
+            side=OrderSide.BUY,
+            type=OrderType.STOP,
+            time_in_force=TimeInForce.GTC,
+            extended_hours=extended_hours,
+            client_order_id=client_order_id,
+            order_class=OrderClass.SIMPLE,
+            legs=legs,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            position_intent=position_intent,
+        )
+        return self.client.submit_order(req)
+
+    def sell_stop_order(
+        self,
+        symbol: str,
+        stop_price: float,
+        notional: float = None,  # quantity in # of shares
+        qty: float = None,  # quantity in USD
+        # side: OrderSide = OrderSide.BUY,
+        # type: OrderType = OrderType.MARKET,
+        # time_in_force: TimeInForce = TimeInForce.GTC,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        # order_class: OrderClass = OrderClass.SIMPLE,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+    ) -> None:
+        """Submit market order"""
+        if isinstance(notional, type(None)) and isinstance(qty, type(None)):
+            raise ValueError("Either notional or qty must be provided")
+
+        req = StopOrderRequest(
+            symbol=symbol,
+            stop_price=stop_price,
+            notional=notional,
+            qty=qty,
+            side=OrderSide.SELL,
+            type=OrderType.STOP,
+            time_in_force=TimeInForce.GTC,
+            extended_hours=extended_hours,
+            client_order_id=client_order_id,
+            order_class=OrderClass.SIMPLE,
+            legs=legs,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            position_intent=position_intent,
+        )
+        return self.client.submit_order(req)
+
+    # ==================================================
+    # submitting STOP LIMIT orders
+    # ==================================================
+
+    def buy_stop_limit_order(
+        self,
+        symbol: str,
+        stop_price: float,
+        limit_price: float,
+        notional: float = None,  # quantity in # of shares
+        qty: float = None,  # quantity in USD
+        # side: OrderSide = OrderSide.BUY,
+        # type: OrderType = OrderType.MARKET,
+        # time_in_force: TimeInForce = TimeInForce.GTC,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        # order_class: OrderClass = OrderClass.SIMPLE,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+    ) -> None:
+        """Submit market order"""
+        if isinstance(notional, type(None)) and isinstance(qty, type(None)):
+            raise ValueError("Either notional or qty must be provided")
+
+        req = StopLimitOrderRequest(
+            symbol=symbol,
+            stop_price=stop_price,
+            limit_price=limit_price,
+            notional=notional,
+            qty=qty,
+            side=OrderSide.BUY,
+            type=OrderType.STOP_LIMIT,
+            time_in_force=TimeInForce.GTC,
+            extended_hours=extended_hours,
+            client_order_id=client_order_id,
+            order_class=OrderClass.SIMPLE,
+            legs=legs,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            position_intent=position_intent,
+        )
+        return self.client.submit_order(req)
+
+    def sell_stop_limit_order(
+        self,
+        symbol: str,
+        stop_price: float,
+        limit_price: float,
+        notional: float = None,  # quantity in # of shares
+        qty: float = None,  # quantity in USD
+        # side: OrderSide = OrderSide.BUY,
+        # type: OrderType = OrderType.MARKET,
+        # time_in_force: TimeInForce = TimeInForce.GTC,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        # order_class: OrderClass = OrderClass.SIMPLE,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+    ) -> None:
+        """Submit market order"""
+        if isinstance(notional, type(None)) and isinstance(qty, type(None)):
+            raise ValueError("Either notional or qty must be provided")
+
+        req = StopLimitOrderRequest(
+            symbol=symbol,
+            stop_price=stop_price,
+            limit_price=limit_price,
+            notional=notional,
+            qty=qty,
+            side=OrderSide.SELL,
+            type=OrderType.STOP_LIMIT,
+            time_in_force=TimeInForce.GTC,
+            extended_hours=extended_hours,
+            client_order_id=client_order_id,
+            order_class=OrderClass.SIMPLE,
+            legs=legs,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            position_intent=position_intent,
+        )
+        return self.client.submit_order(req)
+
+    # ==================================================
+    # submitting TRAILING STOP orders
+    # ==================================================
+
+    def buy_trailing_stop_order(
+        self,
+        symbol: str,
+        stop_price: float,
+        limit_price: float,
+        notional: float = None,  # quantity in # of shares
+        qty: float = None,  # quantity in USD
+        # side: OrderSide = OrderSide.BUY,
+        # type: OrderType = OrderType.MARKET,
+        # time_in_force: TimeInForce = TimeInForce.GTC,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        # order_class: OrderClass = OrderClass.SIMPLE,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+        trail_price: float = None,
+        trail_percent: float = None,
+    ) -> None:
+        """Submit market order"""
+        if isinstance(notional, type(None)) and isinstance(qty, type(None)):
+            raise ValueError("Either notional or qty must be provided")
+
+        req = TrailingStopOrderRequest(
+            symbol=symbol,
+            stop_price=stop_price,
+            limit_price=limit_price,
+            notional=notional,
+            qty=qty,
+            side=OrderSide.BUY,
+            type=OrderType.TRAILING_STOP,
+            time_in_force=TimeInForce.GTC,
+            extended_hours=extended_hours,
+            client_order_id=client_order_id,
+            order_class=OrderClass.SIMPLE,
+            legs=legs,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            position_intent=position_intent,
+            trail_price=trail_price,
+            trail_percent=trail_percent,
+        )
+        return self.client.submit_order(req)
+
+    def sell_trailing_stop_order(
+        self,
+        symbol: str,
+        stop_price: float,
+        limit_price: float,
+        notional: float = None,  # quantity in # of shares
+        qty: float = None,  # quantity in USD
+        # side: OrderSide = OrderSide.BUY,
+        # type: OrderType = OrderType.MARKET,
+        # time_in_force: TimeInForce = TimeInForce.GTC,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        # order_class: OrderClass = OrderClass.SIMPLE,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+        trail_price: float = None,
+        trail_percent: float = None,
+    ) -> None:
+        """Submit market order"""
+        if isinstance(notional, type(None)) and isinstance(qty, type(None)):
+            raise ValueError("Either notional or qty must be provided")
+
+        req = TrailingStopOrderRequest(
+            symbol=symbol,
+            stop_price=stop_price,
+            limit_price=limit_price,
+            notional=notional,
+            qty=qty,
+            side=OrderSide.SELL,
+            type=OrderType.TRAILING_STOP,
+            time_in_force=TimeInForce.GTC,
+            extended_hours=extended_hours,
+            client_order_id=client_order_id,
+            order_class=OrderClass.SIMPLE,
+            legs=legs,
+            take_profit=take_profit,
+            stop_loss=stop_loss,
+            position_intent=position_intent,
+            trail_price=trail_price,
+            trail_percent=trail_percent,
+        )
+        return self.client.submit_order(req)
 
     # ===== gathering information on positions =====
 
     def get_all_positions(self) -> Union[List[Position], Dict[str, Any]]:
         return super().get_all_positions()
-    
-    def get_open_position(self, symbol_or_asset_id: str) -> Union[Position, Dict[str, Any]]:
+
+    def get_open_position(
+        self, symbol_or_asset_id: str
+    ) -> Union[Position, Dict[str, Any]]:
         return super().get_all_positions(symbol_or_asset_id)
-    
-    def close_all_positions(self, cancel_orders: bool = False) -> Union[List[ClosePositionResponse], Dict[str, Any]]:
+
+    def close_all_positions(
+        self, cancel_orders: bool = False
+    ) -> Union[List[ClosePositionResponse], Dict[str, Any]]:
         return super().get_all_positions(cancel_orders)
 
     def close_position(self, symbol_or_asset_id: str) -> Union[Order, Dict[str, Any]]:
         return super().get_all_positions(symbol_or_asset_id)
-    
-    # ===== submitting market orders =====
 
-    def construct_order_request(self, kind: str, params: dict) -> OrderRequest:
-        if kind.upper() == "MARKET":
-            pass
-        
-        order = 
-        # OrderRequest()
-        return order
+    # ===== gather information on assets =====
 
     @override
-    def submit_order(self, order_data: OrderRequest) -> Union[Order, Dict[str, Any]]:
-        return super().submit_order(order_data)
-    
-    # def get_all_orders(self, symbol: str) -> None:
-    #     # get a list of orders including closed (e.g. filled) orders by specifying symbol
-    #     print("Get all orders...", flush=True)
-    #     req = GetOrdersRequest(status=QueryOrderStatus.ALL, symbols=[symbol])
-    #     return self.client.get_orders(req)
+    def get_asset(symbol_or_asset_id: str) -> Union[Asset, Dict[str, Any]]:
+        """
+        Return type has the following parameters:
+            id : UUID
+                unique id of asset
+            asset_class : AssetClass
+                The name of the asset class.
+            exchange : AssetExchange
+                Which exchange this asset is available through.
+            symbol : str
+                The symbol identifier of the asset.
+            name : str
+                The name of the asset.
+            status : AssetStatus
+                The active status of the asset.
+            tradable : bool
+                Whether the asset can be traded.
+            marginable : bool
+                Whether the asset can be traded on margin.
+            shortable : bool
+                Whether the asset can be shorted.
+            easy_to_borrow : bool
+                When shorting, whether the asset is easy to borrow
+            fractionable : bool
+                Whether fractional shares are available
+            attributes : Optional[List[str]]
+                One of ptp_no_exception or ptp_with_exception.
+                It will include unique characteristics of the asset here.
+        """
+        return super().get_asset(symbol_or_asset_id)
 
-    # def get_open_orders(self, symbol: str) -> None:
-    #     print("Get open orders...", flush=True)
-    #     req = GetOrdersRequest(
-    #         status=QueryOrderStatus.OPEN,
-    #         symbols=[symbol]
-    #     )
-
-    #     open_orders = self.client.get_orders(req)
-    #     return open_orders
+    # ===== query orders =====
 
     def query_orders(
         self,
