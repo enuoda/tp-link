@@ -141,32 +141,38 @@ class CryptoTrader(TradingClient):
     __slots__ = ("client", "acct", "acct_config", "crypto_universe")
 
     def __init__(self, paper: bool = True) -> None:
-        self.client = TradingClient(
+        self.trade_client = TradingClient(
             api_key=os.getenv("ALPACA_API_KEY"),
             secret_key=os.getenv("ALPACA_SECRET_KEY"),
             url_override=os.getenv("ALPACA_API_BASE_URL"),
             paper=paper,
         )
 
+        self.data_client = CryptoHistoricalDataClient(
+            api_key=os.getenv("ALPACA_API_KEY"),
+            secret_key=os.getenv("ALPACA_SECRET_KEY"),
+            url_override=os.getenv("ALPACA_API_BASE_URL")
+        )
+
         # check trading account
         # You can check definition of each field in the following documents
         # ref. https://docs.alpaca.markets/docs/account-plans
         # ref. https://docs.alpaca.markets/reference/getaccount-1
-        self.acct = self.client.get_account()
+        self.acct = self.trade_client.get_account()
 
         # check account configuration
         # ref. https://docs.alpaca.markets/reference/getaccountconfig-1
-        self.acct_config = self.client.get_account_configurations()
+        self.acct_config = self.trade_client.get_account_configurations()
 
         self.crypto_universe = CRYPTO_TICKERS
 
-    def print_account_summary(self):
+    def print_account_summary(self) -> None:
         """Print account summary"""
         print("Account Summary:")
-        print(f"\t- Cash: {self.acct.cash}")
-        print(f"\t- Buying Power: {self.acct.buying_power}")
-        print(f"\t- Equity: {self.acct.equity}")
-        print(f"\t- Portfolio Value: {self.acct.portfolio_value}")
+        print(f"\t- Cash            : {self.acct.cash}")
+        print(f"\t- Buying Power    : {self.acct.buying_power}")
+        print(f"\t- Equity          : {self.acct.equity}")
+        print(f"\t- Portfolio Value : {self.acct.portfolio_value}")
 
     @override
     def submit_order(self, order_data: OrderRequest) -> Union[Order, Dict[str, Any]]:
@@ -181,17 +187,13 @@ class CryptoTrader(TradingClient):
         symbol: str,
         notional: float = None,  # quantity in # of shares
         qty: float = None,  # quantity in USD
-        # side: OrderSide = OrderSide.BUY,
-        # type: OrderType = OrderType.MARKET,
-        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
         position_intent: PositionIntent = None,
-    ) -> None:
+    ) -> Order:
         """Submit market order"""
         if isinstance(notional, type(None)) and isinstance(qty, type(None)):
             raise ValueError("Either notional or qty must be provided")
@@ -211,24 +213,20 @@ class CryptoTrader(TradingClient):
             stop_loss=stop_loss,
             position_intent=position_intent,
         )
-        return self.client.submit_order(req)
+        return self.trade_client.submit_order(req)
 
     def sell_market_order(
         self,
         symbol: str,
         notional: float = None,  # quantity in # of shares
         qty: float = None,  # quantity in USD
-        # side: OrderSide = OrderSide.BUY,
-        # type: OrderType = OrderType.MARKET,
-        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
         position_intent: PositionIntent = None,
-    ) -> None:
+    ) -> Order:
         """Submit market order"""
         if isinstance(notional, type(None)) and isinstance(qty, type(None)):
             raise ValueError("Either notional or qty must be provided")
@@ -248,7 +246,49 @@ class CryptoTrader(TradingClient):
             stop_loss=stop_loss,
             position_intent=position_intent,
         )
-        return self.client.submit_order(req)
+        return self.trade_client.submit_order(req)
+
+    def combined_market_order(
+        self,
+        symbols: List[str],
+        notionals: List[float] = None,  # quantity in # of shares
+        qtys: List[float] = None,  # quantity in USD
+        sides: List[OrderSide] = None,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+    ) -> List[Order]:
+        """Submit multiple market order"""
+        if isinstance(notionals, type(None)) and isinstance(qtys, type(None)):
+            raise ValueError("Either notional or qty must be provided")
+
+        assert len(symbols) == len(notionals) == len(qtys) == len(sides), "Length of symbols, notionals, qtys, and sides must be the same"
+
+        orders = []
+        for (symbol, side, notional, qty) in zip(symbols, sides, notionals, qtys):
+            req = MarketOrderRequest(
+                symbol=symbol,
+                notional=notional,
+                qty=qty,
+                side=side,
+                type=OrderType.MARKET,
+                time_in_force=TimeInForce.GTC,
+                extended_hours=extended_hours,
+                client_order_id=client_order_id,
+                order_class=OrderClass.SIMPLE,
+                legs=legs,
+                take_profit=take_profit,
+                stop_loss=stop_loss,
+                position_intent=position_intent,
+            )
+
+            orders.append(self.trade_client.submit_order(req))
+        return orders
+
+
 
     # ==================================================
     # submitting LIMIT orders
@@ -259,18 +299,14 @@ class CryptoTrader(TradingClient):
         symbol: str,
         notional: float = None,  # quantity in # of shares
         qty: float = None,  # quantity in USD
-        # side: OrderSide = OrderSide.BUY,
-        # type: OrderType = OrderType.MARKET,
-        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
         position_intent: PositionIntent = None,
         limit_price: float = None,
-    ) -> None:
+    ) -> Order:
         """Submit market order"""
         if isinstance(notional, type(None)) and isinstance(qty, type(None)):
             raise ValueError("Either notional or qty must be provided")
@@ -291,25 +327,21 @@ class CryptoTrader(TradingClient):
             position_intent=position_intent,
             limit_price=limit_price,
         )
-        return self.client.submit_order(req)
+        return self.trade_client.submit_order(req)
 
     def sell_limit_order(
         self,
         symbol: str,
         notional: float = None,  # quantity in # of shares
         qty: float = None,  # quantity in USD
-        # side: OrderSide = OrderSide.BUY,
-        # type: OrderType = OrderType.MARKET,
-        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
         position_intent: PositionIntent = None,
         limit_price: float = None,
-    ) -> None:
+    ) -> Order:
         """Submit market order"""
         if isinstance(notional, type(None)) and isinstance(qty, type(None)):
             raise ValueError("Either notional or qty must be provided")
@@ -330,7 +362,7 @@ class CryptoTrader(TradingClient):
             position_intent=position_intent,
             limit_price=limit_price,
         )
-        return self.client.submit_order(req)
+        return self.trade_client.submit_order(req)
 
     # ==================================================
     # submitting STOP ORDERS orders
@@ -342,17 +374,13 @@ class CryptoTrader(TradingClient):
         stop_price: float,
         notional: float = None,  # quantity in # of shares
         qty: float = None,  # quantity in USD
-        # side: OrderSide = OrderSide.BUY,
-        # type: OrderType = OrderType.MARKET,
-        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
         position_intent: PositionIntent = None,
-    ) -> None:
+    ) -> Order:
         """Submit market order"""
         if isinstance(notional, type(None)) and isinstance(qty, type(None)):
             raise ValueError("Either notional or qty must be provided")
@@ -373,7 +401,7 @@ class CryptoTrader(TradingClient):
             stop_loss=stop_loss,
             position_intent=position_intent,
         )
-        return self.client.submit_order(req)
+        return self.trade_client.submit_order(req)
 
     def sell_stop_order(
         self,
@@ -381,17 +409,13 @@ class CryptoTrader(TradingClient):
         stop_price: float,
         notional: float = None,  # quantity in # of shares
         qty: float = None,  # quantity in USD
-        # side: OrderSide = OrderSide.BUY,
-        # type: OrderType = OrderType.MARKET,
-        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
         position_intent: PositionIntent = None,
-    ) -> None:
+    ) -> Order:
         """Submit market order"""
         if isinstance(notional, type(None)) and isinstance(qty, type(None)):
             raise ValueError("Either notional or qty must be provided")
@@ -412,7 +436,7 @@ class CryptoTrader(TradingClient):
             stop_loss=stop_loss,
             position_intent=position_intent,
         )
-        return self.client.submit_order(req)
+        return self.trade_client.submit_order(req)
 
     # ==================================================
     # submitting STOP LIMIT orders
@@ -425,17 +449,13 @@ class CryptoTrader(TradingClient):
         limit_price: float,
         notional: float = None,  # quantity in # of shares
         qty: float = None,  # quantity in USD
-        # side: OrderSide = OrderSide.BUY,
-        # type: OrderType = OrderType.MARKET,
-        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
         position_intent: PositionIntent = None,
-    ) -> None:
+    ) -> Order:
         """Submit market order"""
         if isinstance(notional, type(None)) and isinstance(qty, type(None)):
             raise ValueError("Either notional or qty must be provided")
@@ -457,7 +477,7 @@ class CryptoTrader(TradingClient):
             stop_loss=stop_loss,
             position_intent=position_intent,
         )
-        return self.client.submit_order(req)
+        return self.trade_client.submit_order(req)
 
     def sell_stop_limit_order(
         self,
@@ -466,17 +486,13 @@ class CryptoTrader(TradingClient):
         limit_price: float,
         notional: float = None,  # quantity in # of shares
         qty: float = None,  # quantity in USD
-        # side: OrderSide = OrderSide.BUY,
-        # type: OrderType = OrderType.MARKET,
-        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
         position_intent: PositionIntent = None,
-    ) -> None:
+    ) -> Order:
         """Submit market order"""
         if isinstance(notional, type(None)) and isinstance(qty, type(None)):
             raise ValueError("Either notional or qty must be provided")
@@ -498,7 +514,7 @@ class CryptoTrader(TradingClient):
             stop_loss=stop_loss,
             position_intent=position_intent,
         )
-        return self.client.submit_order(req)
+        return self.trade_client.submit_order(req)
 
     # ==================================================
     # submitting TRAILING STOP orders
@@ -511,19 +527,15 @@ class CryptoTrader(TradingClient):
         limit_price: float,
         notional: float = None,  # quantity in # of shares
         qty: float = None,  # quantity in USD
-        # side: OrderSide = OrderSide.BUY,
-        # type: OrderType = OrderType.MARKET,
-        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
         position_intent: PositionIntent = None,
         trail_price: float = None,
         trail_percent: float = None,
-    ) -> None:
+    ) -> Order:
         """Submit market order"""
         if isinstance(notional, type(None)) and isinstance(qty, type(None)):
             raise ValueError("Either notional or qty must be provided")
@@ -547,7 +559,7 @@ class CryptoTrader(TradingClient):
             trail_price=trail_price,
             trail_percent=trail_percent,
         )
-        return self.client.submit_order(req)
+        return self.trade_client.submit_order(req)
 
     def sell_trailing_stop_order(
         self,
@@ -556,19 +568,15 @@ class CryptoTrader(TradingClient):
         limit_price: float,
         notional: float = None,  # quantity in # of shares
         qty: float = None,  # quantity in USD
-        # side: OrderSide = OrderSide.BUY,
-        # type: OrderType = OrderType.MARKET,
-        # time_in_force: TimeInForce = TimeInForce.GTC,
         extended_hours: float = None,
         client_order_id: str = None,
-        # order_class: OrderClass = OrderClass.SIMPLE,
         legs: List[OptionLegRequest] = None,
         take_profit: TakeProfitRequest = None,
         stop_loss: StopLossRequest = None,
         position_intent: PositionIntent = None,
         trail_price: float = None,
         trail_percent: float = None,
-    ) -> None:
+    ) -> Order:
         """Submit market order"""
         if isinstance(notional, type(None)) and isinstance(qty, type(None)):
             raise ValueError("Either notional or qty must be provided")
@@ -592,25 +600,7 @@ class CryptoTrader(TradingClient):
             trail_price=trail_price,
             trail_percent=trail_percent,
         )
-        return self.client.submit_order(req)
-
-    # ===== gathering information on positions =====
-
-    def get_all_positions(self) -> Union[List[Position], Dict[str, Any]]:
-        return super().get_all_positions()
-
-    def get_open_position(
-        self, symbol_or_asset_id: str
-    ) -> Union[Position, Dict[str, Any]]:
-        return super().get_all_positions(symbol_or_asset_id)
-
-    def close_all_positions(
-        self, cancel_orders: bool = False
-    ) -> Union[List[ClosePositionResponse], Dict[str, Any]]:
-        return super().get_all_positions(cancel_orders)
-
-    def close_position(self, symbol_or_asset_id: str) -> Union[Order, Dict[str, Any]]:
-        return super().get_all_positions(symbol_or_asset_id)
+        return self.trade_client.submit_order(req)
 
     # ===== gather information on assets =====
 
@@ -645,41 +635,10 @@ class CryptoTrader(TradingClient):
                 It will include unique characteristics of the asset here.
         """
         return super().get_asset(symbol_or_asset_id)
-
-    # ===== query orders =====
-
-    def query_orders(
-        self,
-        status: QueryOrderStatus,
-        limit: int = None,
-        after: datetime = None,
-        until: datetime = None,
-        direction: str = None,
-        nested: bool = None,
-        side: OrderSide = None,
-        symbol: str | List[str] = None,
-    ) -> None:
-        """
-        Reference:
-            https://alpaca.markets/sdks/python/api_reference/trading/requests.html#getordersrequest
-        """
-        req = GetOrdersRequest(
-            status=status,
-            limit=limit,
-            after=after,
-            until=until,
-            direction=direction,
-            nested=nested,
-            side=side,
-            symbol=symbol,
-        )
-
-        order = self.client.get_orders(req)
-
-        return order
-
-    def cancel_open_orders(self) -> None:
-        self.client.cancel_orders()
+    
+    def get_asset_price(self, symbol: str) -> float:
+        """Get latest price for asset"""
+        return self.get_asset(symbol).price
 
 
 # ==================================================
@@ -1142,24 +1101,6 @@ def compare_symbols_normalized(
     return
 
 
-# def main():
-
-#     # No API key required for crypto data
-#     client = CryptoHistoricalDataClient()
-#     start_date = datetime.now(ZoneInfo("America/New_York")) - timedelta(days=100)
-#     symbols = USDT_PAIRS
-
-#     # ===== collecting data =====
-
-#     df = get_historical_bars(client, symbols, start=start_date)
-#     plot_df(df)
-
-#     # compare_symbols(df, symbols)
-#     compare_symbols_normalized(df, symbols)
-
-#     return
-
-
 if __name__ == "__main__":
 
     from . import CRYPTO_TICKERS, BTC_PAIRS, USDT_PAIRS, USDC_PAIRS, USD_PAIRS
@@ -1182,16 +1123,3 @@ if __name__ == "__main__":
     )
 
     # plot_df(df)
-
-    ct = CryptoTrader()
-
-    ct.submit_market_order("AAVE/USD", None, 50, "buy", "market")
-
-    # print(ct.acct)
-    # print(ct.acct_config)
-
-    # tmp = ct.get_all_orders("BTC/USD")
-    # print(tmp)
-
-    # tmp = ct.get_open_orders("BTC/USD")
-    # print(tmp)
