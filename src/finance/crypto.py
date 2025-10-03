@@ -25,25 +25,22 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 
 # trading
+from alpaca.data.models.bars import Bar, BarSet
+from alpaca.data.enums import CryptoFeed
 from alpaca.data.historical.crypto import CryptoHistoricalDataClient
 from alpaca.data.requests import CryptoBarsRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
 from alpaca.trading.enums import (
-    AssetClass,
-    AssetStatus,
     OrderClass,
     OrderSide,
     OrderType,
     PositionIntent,
-    QueryOrderStatus,
     TimeInForce,
 )
 from alpaca.trading.client import TradingClient
 from alpaca.trading.models import Asset, ClosePositionResponse, Order, Position
 from alpaca.trading.requests import (
-    GetAssetsRequest,
-    GetOrdersRequest,
     LimitOrderRequest,
     MarketOrderRequest,
     OptionLegRequest,
@@ -153,6 +150,9 @@ class CryptoTrader(TradingClient):
             secret_key=os.getenv("ALPACA_SECRET_KEY"),
             url_override=os.getenv("ALPACA_API_BASE_URL")
         )
+
+        self.data_feed = CryptoFeed("US")
+        self.default_timeframe = TimeFrame(1, TimeFrameUnit.Min)
 
         # check trading account
         # You can check definition of each field in the following documents
@@ -287,8 +287,6 @@ class CryptoTrader(TradingClient):
 
             orders.append(self.trade_client.submit_order(req))
         return orders
-
-
 
     # ==================================================
     # submitting LIMIT orders
@@ -640,6 +638,108 @@ class CryptoTrader(TradingClient):
         """Get latest price for asset"""
         return self.get_asset(symbol).price
 
+    # ==================================================
+    # retrieving market data
+    # ==================================================
+
+    @override
+    def get_crypto_bars(
+        self,
+        symbol_or_symbols: str | List[str],
+        timeframe: TimeFrame = None,
+        start: datetime = None,
+        end: datetime = None,
+        limit: int = None,
+    ) -> Union[Dict[str, Bar]]:
+        if isinstance(timeframe, type(None)):
+            timeframe = self.default_timeframe
+
+        req = CryptoBarsRequest(
+            symbol_or_symbols=symbol_or_symbols,
+            timeframe=timeframe,
+            start=start,
+            end=end,
+            limit=limit,
+            sort=None
+        )
+        return self.data_client.get_crypto_bars(req, feed=self.data_feed)
+    
+    @override
+    def get_crypto_latest_bar(
+        self,
+        symbol_or_symbols: str,
+        timeframe: TimeFrame,
+        start: datetime = None,
+        end: datetime = None,
+        limit: int = None,
+    ) -> Union[BarSet, Dict[str, Any]]:
+        req = CryptoBarsRequest(
+            symbol_or_symbols=symbol_or_symbols,
+            timeframe=timeframe,
+            start=start,
+            end=end,
+            limit=limit,
+            sort=None
+        )
+        return self.data_client.get_crypto_bars(req, feed=self.data_feed)
+
+    def retrieve_crypto_data(
+        self,
+        symbol_or_symbols: str | List[str],
+        timeframe: TimeFrame = None,
+        start: datetime = None,
+        end: datetime = None,
+        limit: int = None,
+    ) -> Tuple[pd.DataFrame, np.ndarray, List[str]]:
+        """
+        Retrieve crypto data and store in user-friendly manner
+
+        Returns:
+            df : pd.DataFrame
+                columns: ['open' 'high' 'low' 'close' 'volume' 'trade_count' 'vwap']
+                n_columns := number of columns in this dataframe
+            ohlcv : jnp.ndarray, shape (n_symbols, n_columns, n_times)
+                symbols are indexed in the order they appear in 'sorted_symbols'
+            sorted_symbols : List[str]
+                symbols in DataFrame not necessarily ordered in same the
+                same way they are ordered in 'symbols' parameter
+                'sorted_symbols' provides this ordering, i.e., symbol corresponding
+                to sorted_symbols[i] corresponds to data in ohlcv[i]
+        """
+        data = self.get_crypto_bars(symbol_or_symbols, timeframe, start, end, limit)
+
+        # ----- make numpy-friendly -----
+
+        sorted_symbols = data.index.get_level_values("symbol").unique() 
+        ohlcv = data.values.reshape(
+            len(symbols), len(data.loc[symbols[0]]), len(data.columns)
+        )
+
+        # squeeze to remove redundant outer dimension if only one symbol is requested
+        return data, np.squeeze(ohlcv.transpose(0, 2, 1)), sorted_symbols
+
+    def retrieve_latest_crypto_data(
+        self,
+        symbol_or_symbols: str,
+        timeframe: TimeFrame,
+        start: datetime = None,
+        end: datetime = None,
+        limit: int = None,
+    ) -> Tuple[pd.DataFrame, np.ndarray, List[str]]:
+        data = self.get_crypto_latest_bar(symbol_or_symbols, timeframe, start, end, limit)
+
+        # ----- make numpy-friendly -----
+
+        sorted_symbols = data.index.get_level_values("symbol").unique() 
+        ohlcv = data.values.reshape(
+            len(symbols), len(data.loc[symbols[0]]), len(data.columns)
+        )
+
+        # squeeze to remove redundant outer dimension if only one symbol is requested
+        return data, np.squeeze(ohlcv.transpose(0, 2, 1)), sorted_symbols
+
+
+        
 
 # ==================================================
 # PLOTTING

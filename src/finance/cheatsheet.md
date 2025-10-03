@@ -3,6 +3,21 @@
 ## Timing
 
 ```
+alpaca.data.timeframe.TimeFrameUnit(value)
+    Min = <TimeFrameUnit.Minute: 'Min'>
+    Hour = <TimeFrameUnit.Hour: 'Hour'>
+    Day = <TimeFrameUnit.Day: 'Day'>
+    Week = <TimeFrameUnit.Week: 'Week'>
+    Month = <TimeFrameUnit.Month: 'Month'>
+```
+
+Use `TimeFrameUnit` with `TimeFrame()`: 
+
+    alpaca.data.timeframe.TimeFrame(amount: int, unit: TimeFrameUnit)
+
+First parameter `amount` is integer multiple of `TimeFrameUnit` to use. Set `amount=1` and be done with it.
+
+```
 alpaca.trading.enums.TimeInForce
     CLS = <TimeInForce.CLS: 'cls'>
     DAY = <TimeInForce.DAY: 'day'> 
@@ -165,4 +180,27 @@ alpaca.trading.requests
     STOP = <OrderType.STOP: 'stop'>
     STOP_LIMIT = <OrderType.STOP_LIMIT: 'stop_limit'>
     TRAILING_STOP = <OrderType.TRAILING_STOP: 'trailing_stop'>
+```
+
+## Models
+
+Base is `alpaca.data.models`: https://alpaca.markets/sdks/python/api_reference/data/models.html#models
+
+These things are frequently return types when retrieving market data:
+
+```
+bars.Bar(symbol: str, raw_data: Dict[str, Any])
+    Bar.symbol: str # ticker identifier for security whose data forms the bar
+    Bars.timestamp: datetime # opening timestamp of the bar
+    Bars.open: float # opening price of the interval
+    Bars.high: float # high price of the interval
+    Bars.low: float # low price of the interval
+    Bars.close: float # closing price of the interval
+    Bars.volume: float # volume traded over the interval
+    Bars.trade_count: float # number of trades that occured  
+    Bars.vwap: float # volume-weighted average price
+    Bars.exchange: float # exchange the bar was formed on 
+
+bars.BarSet(raw_data: Dict[str, Any])
+    BarSet.data: Dict[str, List[Bar]] # collection of bars keyed by symbol
 ```
