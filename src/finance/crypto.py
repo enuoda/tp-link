@@ -324,232 +324,6 @@ class CryptoTrader(TradingClient):
             orders.append(self.trade_client.submit_order(req))
         return orders
 
-    def combined_limit_order(
-        self,
-        symbols: List[str],
-        notionals: List[float] = None,  # quantity in # of shares
-        qtys: List[float] = None,  # quantity in USD
-        sides: List[OrderSide] = None,
-        limit_prices: List[float] = None,
-        extended_hours: float = None,
-        client_order_id: str = None,
-        legs: List[OptionLegRequest] = None,
-        take_profit: TakeProfitRequest = None,
-        stop_loss: StopLossRequest = None,
-        position_intent: PositionIntent = None,
-    ) -> List[Order]:
-        """Submit multiple limit orders"""
-        if isinstance(notionals, type(None)) and isinstance(qtys, type(None)):
-            raise ValueError("Either notionals or qtys must be provided")
-
-        # Validate that all lists have the same length
-        lengths = [len(symbols), len(sides), len(limit_prices)]
-        if notionals is not None:
-            lengths.append(len(notionals))
-        if qtys is not None:
-            lengths.append(len(qtys))
-        
-        if not all(length == lengths[0] for length in lengths):
-            raise ValueError("Length of symbols, sides, limit_prices, and quantities must be the same")
-
-        orders = []
-        for i, (symbol, side, limit_price) in enumerate(zip(symbols, sides, limit_prices)):
-            notional = notionals[i] if notionals is not None else None
-            qty = qtys[i] if qtys is not None else None
-            
-            req = LimitOrderRequest(
-                symbol=symbol,
-                notional=notional,
-                qty=qty,
-                side=side,
-                type=OrderType.LIMIT,
-                time_in_force=TimeInForce.GTC,
-                extended_hours=extended_hours,
-                client_order_id=client_order_id,
-                order_class=OrderClass.SIMPLE,
-                legs=legs,
-                take_profit=take_profit,
-                stop_loss=stop_loss,
-                position_intent=position_intent,
-                limit_price=limit_price,
-            )
-
-            orders.append(self.trade_client.submit_order(req))
-        return orders
-
-    def combined_stop_order(
-        self,
-        symbols: List[str],
-        stop_prices: List[float],
-        notionals: List[float] = None,  # quantity in # of shares
-        qtys: List[float] = None,  # quantity in USD
-        sides: List[OrderSide] = None,
-        extended_hours: float = None,
-        client_order_id: str = None,
-        legs: List[OptionLegRequest] = None,
-        take_profit: TakeProfitRequest = None,
-        stop_loss: StopLossRequest = None,
-        position_intent: PositionIntent = None,
-    ) -> List[Order]:
-        """Submit multiple stop orders"""
-        if isinstance(notionals, type(None)) and isinstance(qtys, type(None)):
-            raise ValueError("Either notionals or qtys must be provided")
-
-        # Validate that all lists have the same length
-        lengths = [len(symbols), len(stop_prices), len(sides)]
-        if notionals is not None:
-            lengths.append(len(notionals))
-        if qtys is not None:
-            lengths.append(len(qtys))
-        
-        if not all(length == lengths[0] for length in lengths):
-            raise ValueError("Length of symbols, stop_prices, sides, and quantities must be the same")
-
-        orders = []
-        for i, (symbol, stop_price, side) in enumerate(zip(symbols, stop_prices, sides)):
-            notional = notionals[i] if notionals is not None else None
-            qty = qtys[i] if qtys is not None else None
-            
-            req = StopOrderRequest(
-                symbol=symbol,
-                stop_price=stop_price,
-                notional=notional,
-                qty=qty,
-                side=side,
-                type=OrderType.STOP,
-                time_in_force=TimeInForce.GTC,
-                extended_hours=extended_hours,
-                client_order_id=client_order_id,
-                order_class=OrderClass.SIMPLE,
-                legs=legs,
-                take_profit=take_profit,
-                stop_loss=stop_loss,
-                position_intent=position_intent,
-            )
-
-            orders.append(self.trade_client.submit_order(req))
-        return orders
-
-    def combined_stop_limit_order(
-        self,
-        symbols: List[str],
-        stop_prices: List[float],
-        limit_prices: List[float],
-        notionals: List[float] = None,  # quantity in # of shares
-        qtys: List[float] = None,  # quantity in USD
-        sides: List[OrderSide] = None,
-        extended_hours: float = None,
-        client_order_id: str = None,
-        legs: List[OptionLegRequest] = None,
-        take_profit: TakeProfitRequest = None,
-        stop_loss: StopLossRequest = None,
-        position_intent: PositionIntent = None,
-    ) -> List[Order]:
-        """Submit multiple stop-limit orders"""
-        if isinstance(notionals, type(None)) and isinstance(qtys, type(None)):
-            raise ValueError("Either notionals or qtys must be provided")
-
-        # Validate that all lists have the same length
-        lengths = [len(symbols), len(stop_prices), len(limit_prices), len(sides)]
-        if notionals is not None:
-            lengths.append(len(notionals))
-        if qtys is not None:
-            lengths.append(len(qtys))
-        
-        if not all(length == lengths[0] for length in lengths):
-            raise ValueError("Length of symbols, stop_prices, limit_prices, sides, and quantities must be the same")
-
-        orders = []
-        for i, (symbol, stop_price, limit_price, side) in enumerate(zip(symbols, stop_prices, limit_prices, sides)):
-            notional = notionals[i] if notionals is not None else None
-            qty = qtys[i] if qtys is not None else None
-            
-            req = StopLimitOrderRequest(
-                symbol=symbol,
-                stop_price=stop_price,
-                limit_price=limit_price,
-                notional=notional,
-                qty=qty,
-                side=side,
-                type=OrderType.STOP_LIMIT,
-                time_in_force=TimeInForce.GTC,
-                extended_hours=extended_hours,
-                client_order_id=client_order_id,
-                order_class=OrderClass.SIMPLE,
-                legs=legs,
-                take_profit=take_profit,
-                stop_loss=stop_loss,
-                position_intent=position_intent,
-            )
-
-            orders.append(self.trade_client.submit_order(req))
-        return orders
-
-    def combined_trailing_stop_order(
-        self,
-        symbols: List[str],
-        stop_prices: List[float],
-        limit_prices: List[float],
-        notionals: List[float] = None,  # quantity in # of shares
-        qtys: List[float] = None,  # quantity in USD
-        sides: List[OrderSide] = None,
-        trail_prices: List[float] = None,
-        trail_percents: List[float] = None,
-        extended_hours: float = None,
-        client_order_id: str = None,
-        legs: List[OptionLegRequest] = None,
-        take_profit: TakeProfitRequest = None,
-        stop_loss: StopLossRequest = None,
-        position_intent: PositionIntent = None,
-    ) -> List[Order]:
-        """Submit multiple trailing stop orders"""
-        if isinstance(notionals, type(None)) and isinstance(qtys, type(None)):
-            raise ValueError("Either notionals or qtys must be provided")
-
-        # Validate that all lists have the same length
-        lengths = [len(symbols), len(stop_prices), len(limit_prices), len(sides)]
-        if notionals is not None:
-            lengths.append(len(notionals))
-        if qtys is not None:
-            lengths.append(len(qtys))
-        if trail_prices is not None:
-            lengths.append(len(trail_prices))
-        if trail_percents is not None:
-            lengths.append(len(trail_percents))
-        
-        if not all(length == lengths[0] for length in lengths):
-            raise ValueError("Length of symbols, stop_prices, limit_prices, sides, quantities, and trailing parameters must be the same")
-
-        orders = []
-        for i, (symbol, stop_price, limit_price, side) in enumerate(zip(symbols, stop_prices, limit_prices, sides)):
-            notional = notionals[i] if notionals is not None else None
-            qty = qtys[i] if qtys is not None else None
-            trail_price = trail_prices[i] if trail_prices is not None else None
-            trail_percent = trail_percents[i] if trail_percents is not None else None
-            
-            req = TrailingStopOrderRequest(
-                symbol=symbol,
-                stop_price=stop_price,
-                limit_price=limit_price,
-                notional=notional,
-                qty=qty,
-                side=side,
-                type=OrderType.TRAILING_STOP,
-                time_in_force=TimeInForce.GTC,
-                extended_hours=extended_hours,
-                client_order_id=client_order_id,
-                order_class=OrderClass.SIMPLE,
-                legs=legs,
-                take_profit=take_profit,
-                stop_loss=stop_loss,
-                position_intent=position_intent,
-                trail_price=trail_price,
-                trail_percent=trail_percent,
-            )
-
-            orders.append(self.trade_client.submit_order(req))
-        return orders
-
     # ==================================================
     # submitting LIMIT orders
     # ==================================================
@@ -624,6 +398,59 @@ class CryptoTrader(TradingClient):
         )
         return self.trade_client.submit_order(req)
 
+    def combined_limit_order(
+        self,
+        symbols: List[str],
+        notionals: List[float] = None,  # quantity in # of shares
+        qtys: List[float] = None,  # quantity in USD
+        sides: List[OrderSide] = None,
+        limit_prices: List[float] = None,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+    ) -> List[Order]:
+        """Submit multiple limit orders"""
+        if isinstance(notionals, type(None)) and isinstance(qtys, type(None)):
+            raise ValueError("Either notionals or qtys must be provided")
+
+        # Validate that all lists have the same length
+        lengths = [len(symbols), len(sides), len(limit_prices)]
+        if notionals is not None:
+            lengths.append(len(notionals))
+        if qtys is not None:
+            lengths.append(len(qtys))
+        
+        if not all(length == lengths[0] for length in lengths):
+            raise ValueError("Length of symbols, sides, limit_prices, and quantities must be the same")
+
+        orders = []
+        for i, (symbol, side, limit_price) in enumerate(zip(symbols, sides, limit_prices)):
+            notional = notionals[i] if notionals is not None else None
+            qty = qtys[i] if qtys is not None else None
+            
+            req = LimitOrderRequest(
+                symbol=symbol,
+                notional=notional,
+                qty=qty,
+                side=side,
+                type=OrderType.LIMIT,
+                time_in_force=TimeInForce.GTC,
+                extended_hours=extended_hours,
+                client_order_id=client_order_id,
+                order_class=OrderClass.SIMPLE,
+                legs=legs,
+                take_profit=take_profit,
+                stop_loss=stop_loss,
+                position_intent=position_intent,
+                limit_price=limit_price,
+            )
+
+            orders.append(self.trade_client.submit_order(req))
+        return orders
+
     # ==================================================
     # submitting STOP ORDERS orders
     # ==================================================
@@ -697,6 +524,59 @@ class CryptoTrader(TradingClient):
             position_intent=position_intent,
         )
         return self.trade_client.submit_order(req)
+
+    def combined_stop_order(
+        self,
+        symbols: List[str],
+        stop_prices: List[float],
+        notionals: List[float] = None,  # quantity in # of shares
+        qtys: List[float] = None,  # quantity in USD
+        sides: List[OrderSide] = None,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+    ) -> List[Order]:
+        """Submit multiple stop orders"""
+        if isinstance(notionals, type(None)) and isinstance(qtys, type(None)):
+            raise ValueError("Either notionals or qtys must be provided")
+
+        # Validate that all lists have the same length
+        lengths = [len(symbols), len(stop_prices), len(sides)]
+        if notionals is not None:
+            lengths.append(len(notionals))
+        if qtys is not None:
+            lengths.append(len(qtys))
+        
+        if not all(length == lengths[0] for length in lengths):
+            raise ValueError("Length of symbols, stop_prices, sides, and quantities must be the same")
+
+        orders = []
+        for i, (symbol, stop_price, side) in enumerate(zip(symbols, stop_prices, sides)):
+            notional = notionals[i] if notionals is not None else None
+            qty = qtys[i] if qtys is not None else None
+            
+            req = StopOrderRequest(
+                symbol=symbol,
+                stop_price=stop_price,
+                notional=notional,
+                qty=qty,
+                side=side,
+                type=OrderType.STOP,
+                time_in_force=TimeInForce.GTC,
+                extended_hours=extended_hours,
+                client_order_id=client_order_id,
+                order_class=OrderClass.SIMPLE,
+                legs=legs,
+                take_profit=take_profit,
+                stop_loss=stop_loss,
+                position_intent=position_intent,
+            )
+
+            orders.append(self.trade_client.submit_order(req))
+        return orders
 
     # ==================================================
     # submitting STOP LIMIT orders
@@ -775,6 +655,61 @@ class CryptoTrader(TradingClient):
             position_intent=position_intent,
         )
         return self.trade_client.submit_order(req)
+
+    def combined_stop_limit_order(
+        self,
+        symbols: List[str],
+        stop_prices: List[float],
+        limit_prices: List[float],
+        notionals: List[float] = None,  # quantity in # of shares
+        qtys: List[float] = None,  # quantity in USD
+        sides: List[OrderSide] = None,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+    ) -> List[Order]:
+        """Submit multiple stop-limit orders"""
+        if isinstance(notionals, type(None)) and isinstance(qtys, type(None)):
+            raise ValueError("Either notionals or qtys must be provided")
+
+        # Validate that all lists have the same length
+        lengths = [len(symbols), len(stop_prices), len(limit_prices), len(sides)]
+        if notionals is not None:
+            lengths.append(len(notionals))
+        if qtys is not None:
+            lengths.append(len(qtys))
+        
+        if not all(length == lengths[0] for length in lengths):
+            raise ValueError("Length of symbols, stop_prices, limit_prices, sides, and quantities must be the same")
+
+        orders = []
+        for i, (symbol, stop_price, limit_price, side) in enumerate(zip(symbols, stop_prices, limit_prices, sides)):
+            notional = notionals[i] if notionals is not None else None
+            qty = qtys[i] if qtys is not None else None
+            
+            req = StopLimitOrderRequest(
+                symbol=symbol,
+                stop_price=stop_price,
+                limit_price=limit_price,
+                notional=notional,
+                qty=qty,
+                side=side,
+                type=OrderType.STOP_LIMIT,
+                time_in_force=TimeInForce.GTC,
+                extended_hours=extended_hours,
+                client_order_id=client_order_id,
+                order_class=OrderClass.SIMPLE,
+                legs=legs,
+                take_profit=take_profit,
+                stop_loss=stop_loss,
+                position_intent=position_intent,
+            )
+
+            orders.append(self.trade_client.submit_order(req))
+        return orders
 
     # ==================================================
     # submitting TRAILING STOP orders
@@ -861,6 +796,71 @@ class CryptoTrader(TradingClient):
             trail_percent=trail_percent,
         )
         return self.trade_client.submit_order(req)
+
+    def combined_trailing_stop_order(
+        self,
+        symbols: List[str],
+        stop_prices: List[float],
+        limit_prices: List[float],
+        notionals: List[float] = None,  # quantity in # of shares
+        qtys: List[float] = None,  # quantity in USD
+        sides: List[OrderSide] = None,
+        trail_prices: List[float] = None,
+        trail_percents: List[float] = None,
+        extended_hours: float = None,
+        client_order_id: str = None,
+        legs: List[OptionLegRequest] = None,
+        take_profit: TakeProfitRequest = None,
+        stop_loss: StopLossRequest = None,
+        position_intent: PositionIntent = None,
+    ) -> List[Order]:
+        """Submit multiple trailing stop orders"""
+        if isinstance(notionals, type(None)) and isinstance(qtys, type(None)):
+            raise ValueError("Either notionals or qtys must be provided")
+
+        # Validate that all lists have the same length
+        lengths = [len(symbols), len(stop_prices), len(limit_prices), len(sides)]
+        if notionals is not None:
+            lengths.append(len(notionals))
+        if qtys is not None:
+            lengths.append(len(qtys))
+        if trail_prices is not None:
+            lengths.append(len(trail_prices))
+        if trail_percents is not None:
+            lengths.append(len(trail_percents))
+        
+        if not all(length == lengths[0] for length in lengths):
+            raise ValueError("Length of symbols, stop_prices, limit_prices, sides, quantities, and trailing parameters must be the same")
+
+        orders = []
+        for i, (symbol, stop_price, limit_price, side) in enumerate(zip(symbols, stop_prices, limit_prices, sides)):
+            notional = notionals[i] if notionals is not None else None
+            qty = qtys[i] if qtys is not None else None
+            trail_price = trail_prices[i] if trail_prices is not None else None
+            trail_percent = trail_percents[i] if trail_percents is not None else None
+            
+            req = TrailingStopOrderRequest(
+                symbol=symbol,
+                stop_price=stop_price,
+                limit_price=limit_price,
+                notional=notional,
+                qty=qty,
+                side=side,
+                type=OrderType.TRAILING_STOP,
+                time_in_force=TimeInForce.GTC,
+                extended_hours=extended_hours,
+                client_order_id=client_order_id,
+                order_class=OrderClass.SIMPLE,
+                legs=legs,
+                take_profit=take_profit,
+                stop_loss=stop_loss,
+                position_intent=position_intent,
+                trail_price=trail_price,
+                trail_percent=trail_percent,
+            )
+
+            orders.append(self.trade_client.submit_order(req))
+        return orders
 
     # ===== gather information on assets =====
 
@@ -1082,11 +1082,12 @@ class CryptoTrader(TradingClient):
             print(f"Started real-time streaming for {symbols}")
 
     def stop_real_time_streaming(self) -> None:
-        """Stop real-time streaming"""
+        """
+        Stop real-time streaming; streaming client doesn't have a 
+        direct stop method (thread will terminate when connection is closed)
+        """
         if self._streaming_active:
             self._streaming_active = False
-            # Note: The stream client doesn't have a direct stop method
-            # The thread will terminate when the connection is closed
             print("Real-time streaming stopped")
 
     def get_latest_price(self, symbol: str) -> Optional[float]:

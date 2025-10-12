@@ -18,8 +18,8 @@ import sys
 import time
 import logging
 import argparse
-from datetime import datetime, timedelta
-from typing import List, Optional
+# from datetime import datetime, timedelta
+# from typing import List, Optional
 
 # Add src directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -27,6 +27,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 # Import with error handling
 try:
     from src.finance.live_trading_example import TradingPartner
+
 except ImportError as e:
     print(f"❌ Import error: {e}")
     print("\nPlease ensure all required dependencies are installed:")
@@ -35,6 +36,7 @@ except ImportError as e:
     print("export ALPACA_API_KEY='your_key'")
     print("export ALPACA_SECRET_KEY='your_secret'")
     sys.exit(1)
+
 except ValueError as e:
     print("❌ Missing required environment variables!")
     print("\nPlease set the following environment variables:")
