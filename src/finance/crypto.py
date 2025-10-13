@@ -82,6 +82,69 @@ def get_historical_bars(
     return client.get_crypto_bars(req).df
 
 
+def fetch_crypto_data_for_cointegration(
+    symbols: List[str],
+    days_back: int = 7,
+    frequency: TimeFrameUnit = TimeFrame(1, TimeFrameUnit.Hour)
+) -> Tuple[List[np.ndarray], List[str], pd.DatetimeIndex]:
+    """
+    Fetch crypto data for cointegration analysis with proper time alignment
+    
+    Parameters:
+    -----------
+    symbols : List[str]
+        List of crypto symbols to fetch (e.g., ['BTC/USD', 'ETH/USD'])
+    days_back : int
+        Number of days back to fetch data (default: 7)
+    frequency : TimeFrameUnit
+        Data frequency (default: 1 hour)
+        
+    Returns:
+    --------
+    price_arrays : List[np.ndarray]
+        List of numpy arrays containing close prices for each symbol (time-aligned)
+    sorted_symbols : List[str]
+        List of symbols in the same order as price_arrays
+    timestamps : pd.DatetimeIndex
+        Common timestamps for all symbols
+    """
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    
+    # Calculate start and end times
+    end_time = datetime.now(ZoneInfo("America/New_York"))
+    start_time = end_time - timedelta(days=days_back)
+    
+    # Fetch data using existing function
+    df, ohlcv, sorted_symbols = retrieve_crypto_data(
+        symbols=symbols,
+        start_time=start_time,
+        end_time=end_time,
+        frequency=frequency,
+        limit=None
+    )
+    
+    # Find common timestamps across all symbols
+    all_timestamps = set()
+    for symbol in sorted_symbols:
+        symbol_timestamps = df.xs(symbol, level="symbol").index
+        all_timestamps.update(symbol_timestamps)
+    
+    # Sort timestamps and create common time index
+    common_timestamps = pd.DatetimeIndex(sorted(all_timestamps))
+    
+    # Extract close prices for each symbol, aligned to common timestamps
+    price_arrays = []
+    for symbol in sorted_symbols:
+        symbol_data = df.xs(symbol, level="symbol")
+        # Reindex to common timestamps without forward-filling; leave NaNs for missing points
+        aligned_data = symbol_data.reindex(common_timestamps)
+        close_prices = aligned_data['close'].values
+        price_arrays.append(close_prices)
+    
+    return price_arrays, sorted_symbols, common_timestamps
+
+
 def retrieve_crypto_data(
     symbols: str | List[str],
     start_time,
@@ -119,9 +182,23 @@ def retrieve_crypto_data(
     # ----- make numpy-friendly -----
 
     sorted_symbols = data.index.get_level_values("symbol").unique()
-    n_timestamps = len(data.loc[symbols[0]])
+    
+    # Check if we have data for all symbols
+    if len(sorted_symbols) != len(symbols):
+        missing_symbols = set(symbols) - set(sorted_symbols)
+        print(f"Warning: Missing data for symbols: {missing_symbols}")
+    
+    # Get the minimum number of timestamps across all symbols
+    min_timestamps = min(len(data.loc[symbol]) for symbol in sorted_symbols)
     n_columns = len(data.columns)
-    ohlcv = data.values.reshape(len(symbols), n_timestamps, n_columns).transpose(0, 2, 1)
+    
+    # Create ohlcv array with consistent dimensions
+    ohlcv_list = []
+    for symbol in sorted_symbols:
+        symbol_data = data.loc[symbol].iloc[:min_timestamps]  # Take only the first min_timestamps
+        ohlcv_list.append(symbol_data.values)
+    
+    ohlcv = np.array(ohlcv_list).transpose(0, 2, 1)
 
     # squeeze to remove redundant outer dimension if only one symbol is requested
     return data, np.squeeze(ohlcv), sorted_symbols
