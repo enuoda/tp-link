@@ -142,33 +142,26 @@ class CryptoTrader(TradingClient):
     __slots__ = ("client", "acct", "acct_config", "crypto_universe")
 
     def __init__(self, paper: bool = True) -> None:
+        # Initialize trading client - use paper parameter instead of url_override
+        # The paper parameter automatically sets the correct base URL
         self.trade_client = TradingClient(
             api_key=os.getenv("ALPACA_API_KEY"),
             secret_key=os.getenv("ALPACA_SECRET_KEY"),
-            url_override=os.getenv("ALPACA_API_BASE_URL"),
             paper=paper,
         )
 
+        # Initialize data client - allow SDK to select correct data host
         self.data_client = CryptoHistoricalDataClient(
             api_key=os.getenv("ALPACA_API_KEY"),
             secret_key=os.getenv("ALPACA_SECRET_KEY"),
-            url_override=os.getenv("ALPACA_API_BASE_URL"),
         )
 
         # Initialize streaming client for real-time data
-        # Note: WebSocket client needs different URL format than HTTP API
-        api_base_url = os.getenv("ALPACA_API_BASE_URL", "https://paper-api.alpaca.markets")
-        if "paper-api" in api_base_url:
-            # Convert HTTP URL to WebSocket URL for paper trading
-            ws_url = api_base_url.replace("https://", "wss://")
-        else:
-            # For live trading, use the live WebSocket URL
-            ws_url = "wss://stream.data.alpaca.markets"
-        
+        # Let the SDK choose the correct crypto websocket endpoint
         self.stream_client = CryptoDataStream(
             api_key=os.getenv("ALPACA_API_KEY"),
             secret_key=os.getenv("ALPACA_SECRET_KEY"),
-            url_override=ws_url,
+            feed=CryptoFeed.US,
         )
 
         self.data_feed = CryptoFeed.US
@@ -918,7 +911,7 @@ class CryptoTrader(TradingClient):
                 It will include unique characteristics of the asset here.
         """
         return super().get_asset(symbol_or_asset_id)
-
+    
     def get_asset_price(self, symbol: str) -> float:
         """Get latest price for asset"""
         return self.get_asset(symbol).price
@@ -948,7 +941,7 @@ class CryptoTrader(TradingClient):
             sort=None,
         )
         return self.data_client.get_crypto_bars(req, feed=self.data_feed)
-
+    
     # @override
     def get_crypto_latest_bar(
         self,
@@ -995,7 +988,7 @@ class CryptoTrader(TradingClient):
 
         # ----- make numpy-friendly -----
 
-        sorted_symbols = data.index.get_level_values("symbol").unique()
+        sorted_symbols = data.index.get_level_values("symbol").unique() 
         ohlcv = data.values.reshape(
             len(symbols), len(data.loc[symbols[0]]), len(data.columns)
         )
@@ -1015,7 +1008,7 @@ class CryptoTrader(TradingClient):
 
         # ----- make numpy-friendly -----
 
-        sorted_symbols = data.index.get_level_values("symbol").unique()
+        sorted_symbols = data.index.get_level_values("symbol").unique() 
         ohlcv = data.values.reshape(
             len(sorted_symbols), len(data.loc[sorted_symbols[0]]), len(data.columns)
         )
@@ -1278,7 +1271,7 @@ class CryptoTrader(TradingClient):
                 }
 
             return summary
-
+        
 
 # ==================================================
 # PLOTTING

@@ -57,24 +57,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def testing():
-    """Testing function for development and debugging"""
-    logger.info("🧪 Running testing function...")
+# def testing():
+#     """Testing function for development and debugging"""
+#     logger.info("🧪 Running testing function...")
     
-    try:
-        from polygon import RESTClient
+#     try:
+#         from polygon import RESTClient
         
-        # Note: This API key appears to be hardcoded for testing
-        # In production, use environment variables
-        client = RESTClient("qadVu6Vm9lfDpYrHy0e4xNG0wAYrnLQq")
+#         # Note: This API key appears to be hardcoded for testing
+#         # In production, use environment variables
+#         client = RESTClient("qadVu6Vm9lfDpYrHy0e4xNG0wAYrnLQq")
         
-        types = client.get_ticker_types(asset_class="crypto", locale="us")
-        print("Crypto ticker types:", types)
+#         types = client.get_ticker_types(asset_class="crypto", locale="us")
+#         print("Crypto ticker types:", types)
         
-        return True
-    except Exception as e:
-        logger.error(f"Testing failed: {e}")
-        return False
+#         return True
+#     except Exception as e:
+#         logger.error(f"Testing failed: {e}")
+#         return False
 
 def main() -> int:
     """
@@ -108,33 +108,33 @@ def main() -> int:
             logger.info("Switching to paper trading mode")
             paper_trading = True
     
-    try:
-        trader = TradingPartner(paper=paper_trading)
+    # try:
+    trader = TradingPartner(paper=paper_trading)
+    
+    if args.mode == 'account':
+        logger.info("📊 Displaying account information...")
+        trader.get_account()
         
-        if args.mode == 'account':
-            logger.info("📊 Displaying account information...")
-            trader.get_account()
-            
-        elif args.mode == 'trade':
-            logger.info("🤖 Starting trading mode...")
-            success = trader.start_streaming_bot(args.symbols, args.duration)
-            return 0 if success else 1
-            
-        elif args.mode == 'monitor':
-            logger.info("📡 Starting monitoring mode...")
-            success = trader.monitor_data_only(args.symbols, args.duration)
-            return 0 if success else 1
-            
-        elif args.mode == 'test':
-            logger.info("🧪 Running tests...")
-            success = testing()
-            return 0 if success else 1
+    elif args.mode == 'trade':
+        logger.info("🤖 Starting trading mode...")
+        success = trader.start_streaming_bot(args.symbols, args.duration)
+        return 0 if success else 1
         
-        return 0
+    elif args.mode == 'monitor':
+        logger.info("📡 Starting monitoring mode...")
+        success = trader.monitor_data_only(args.symbols, args.duration)
+        return 0 if success else 1
         
-    except Exception as e:
-        logger.error(f"❌ Application error: {e}")
-        return 1
+    # elif args.mode == 'test':
+    #     logger.info("🧪 Running tests...")
+    #     success = testing()
+    #     return 0 if success else 1
+    
+    return 0
+        
+    # except Exception as e:
+    #     logger.error(f"❌ Application error: {e}")
+    #     return 1
 
 if __name__ == "__main__":
     exit_code = main()
