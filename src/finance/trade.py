@@ -70,23 +70,18 @@ def main():
             symbol = ct.crypto_universe[i]
             symbol = "SUSHI/USD"
 
-
             buy_signal = np.random.uniform(0, 1) < 0.5
             sell_signal = not buy_signal
 
             # ----- trading execution -----
 
             if buy_signal:
-                order = ct.buy_market_order(
-                    symbol=symbol, notional=minimal_transaction
-                )
+                order = ct.buy_market_order(symbol=symbol, notional=minimal_transaction)
 
                 print_transaction(order)
 
             elif sell_signal:
-                order = ct.sell_market_order(
-                    symbol=symbol, notional=minimal_transaction
-                )
+                order = ct.sell_market_order(symbol=symbol, notional=minimal_transaction)
 
                 print_transaction(order)
 

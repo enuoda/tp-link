@@ -152,29 +152,29 @@ class CryptoTrader(TradingClient):
         self.data_client = CryptoHistoricalDataClient(
             api_key=os.getenv("ALPACA_API_KEY"),
             secret_key=os.getenv("ALPACA_SECRET_KEY"),
-            url_override=os.getenv("ALPACA_API_BASE_URL")
+            url_override=os.getenv("ALPACA_API_BASE_URL"),
         )
 
         # Initialize streaming client for real-time data
         self.stream_client = CryptoDataStream(
             api_key=os.getenv("ALPACA_API_KEY"),
             secret_key=os.getenv("ALPACA_SECRET_KEY"),
-            url_override=os.getenv("ALPACA_API_BASE_URL")
+            url_override=os.getenv("ALPACA_API_BASE_URL"),
         )
 
         self.data_feed = CryptoFeed.US
         self.default_timeframe = TimeFrame(1, TimeFrameUnit.Minute)
-        
+
         # Real-time data storage
         self._latest_prices: Dict[str, float] = {}
         self._latest_bars: Dict[str, Bar] = {}
         self._latest_quotes: Dict[str, Any] = {}
         self._latest_trades: Dict[str, Any] = {}
-        
+
         # Data buffers for efficient access
         self._price_buffer: Dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
         self._bar_buffer: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
-        
+
         # Streaming control
         self._streaming_active = False
         self._stream_thread = None
@@ -297,7 +297,7 @@ class CryptoTrader(TradingClient):
             lengths.append(len(notionals))
         if qtys is not None:
             lengths.append(len(qtys))
-        
+
         if not all(length == lengths[0] for length in lengths):
             raise ValueError("Length of symbols, sides, and quantities must be the same")
 
@@ -422,15 +422,19 @@ class CryptoTrader(TradingClient):
             lengths.append(len(notionals))
         if qtys is not None:
             lengths.append(len(qtys))
-        
+
         if not all(length == lengths[0] for length in lengths):
-            raise ValueError("Length of symbols, sides, limit_prices, and quantities must be the same")
+            raise ValueError(
+                "Length of symbols, sides, limit_prices, and quantities must be the same"
+            )
 
         orders = []
-        for i, (symbol, side, limit_price) in enumerate(zip(symbols, sides, limit_prices)):
+        for i, (symbol, side, limit_price) in enumerate(
+            zip(symbols, sides, limit_prices)
+        ):
             notional = notionals[i] if notionals is not None else None
             qty = qtys[i] if qtys is not None else None
-            
+
             req = LimitOrderRequest(
                 symbol=symbol,
                 notional=notional,
@@ -549,15 +553,17 @@ class CryptoTrader(TradingClient):
             lengths.append(len(notionals))
         if qtys is not None:
             lengths.append(len(qtys))
-        
+
         if not all(length == lengths[0] for length in lengths):
-            raise ValueError("Length of symbols, stop_prices, sides, and quantities must be the same")
+            raise ValueError(
+                "Length of symbols, stop_prices, sides, and quantities must be the same"
+            )
 
         orders = []
         for i, (symbol, stop_price, side) in enumerate(zip(symbols, stop_prices, sides)):
             notional = notionals[i] if notionals is not None else None
             qty = qtys[i] if qtys is not None else None
-            
+
             req = StopOrderRequest(
                 symbol=symbol,
                 stop_price=stop_price,
@@ -681,15 +687,19 @@ class CryptoTrader(TradingClient):
             lengths.append(len(notionals))
         if qtys is not None:
             lengths.append(len(qtys))
-        
+
         if not all(length == lengths[0] for length in lengths):
-            raise ValueError("Length of symbols, stop_prices, limit_prices, sides, and quantities must be the same")
+            raise ValueError(
+                "Length of symbols, stop_prices, limit_prices, sides, and quantities must be the same"
+            )
 
         orders = []
-        for i, (symbol, stop_price, limit_price, side) in enumerate(zip(symbols, stop_prices, limit_prices, sides)):
+        for i, (symbol, stop_price, limit_price, side) in enumerate(
+            zip(symbols, stop_prices, limit_prices, sides)
+        ):
             notional = notionals[i] if notionals is not None else None
             qty = qtys[i] if qtys is not None else None
-            
+
             req = StopLimitOrderRequest(
                 symbol=symbol,
                 stop_price=stop_price,
@@ -828,17 +838,21 @@ class CryptoTrader(TradingClient):
             lengths.append(len(trail_prices))
         if trail_percents is not None:
             lengths.append(len(trail_percents))
-        
+
         if not all(length == lengths[0] for length in lengths):
-            raise ValueError("Length of symbols, stop_prices, limit_prices, sides, quantities, and trailing parameters must be the same")
+            raise ValueError(
+                "Length of symbols, stop_prices, limit_prices, sides, quantities, and trailing parameters must be the same"
+            )
 
         orders = []
-        for i, (symbol, stop_price, limit_price, side) in enumerate(zip(symbols, stop_prices, limit_prices, sides)):
+        for i, (symbol, stop_price, limit_price, side) in enumerate(
+            zip(symbols, stop_prices, limit_prices, sides)
+        ):
             notional = notionals[i] if notionals is not None else None
             qty = qtys[i] if qtys is not None else None
             trail_price = trail_prices[i] if trail_prices is not None else None
             trail_percent = trail_percents[i] if trail_percents is not None else None
-            
+
             req = TrailingStopOrderRequest(
                 symbol=symbol,
                 stop_price=stop_price,
@@ -895,7 +909,7 @@ class CryptoTrader(TradingClient):
                 It will include unique characteristics of the asset here.
         """
         return super().get_asset(symbol_or_asset_id)
-    
+
     def get_asset_price(self, symbol: str) -> float:
         """Get latest price for asset"""
         return self.get_asset(symbol).price
@@ -922,10 +936,10 @@ class CryptoTrader(TradingClient):
             start=start,
             end=end,
             limit=limit,
-            sort=None
+            sort=None,
         )
         return self.data_client.get_crypto_bars(req, feed=self.data_feed)
-    
+
     # @override
     def get_crypto_latest_bar(
         self,
@@ -941,7 +955,7 @@ class CryptoTrader(TradingClient):
             start=start,
             end=end,
             limit=limit,
-            sort=None
+            sort=None,
         )
         return self.data_client.get_crypto_bars(req, feed=self.data_feed)
 
@@ -972,7 +986,7 @@ class CryptoTrader(TradingClient):
 
         # ----- make numpy-friendly -----
 
-        sorted_symbols = data.index.get_level_values("symbol").unique() 
+        sorted_symbols = data.index.get_level_values("symbol").unique()
         ohlcv = data.values.reshape(
             len(symbols), len(data.loc[symbols[0]]), len(data.columns)
         )
@@ -992,7 +1006,7 @@ class CryptoTrader(TradingClient):
 
         # ----- make numpy-friendly -----
 
-        sorted_symbols = data.index.get_level_values("symbol").unique() 
+        sorted_symbols = data.index.get_level_values("symbol").unique()
         ohlcv = data.values.reshape(
             len(sorted_symbols), len(data.loc[sorted_symbols[0]]), len(data.columns)
         )
@@ -1008,74 +1022,82 @@ class CryptoTrader(TradingClient):
         """Handle incoming trade data"""
         symbol = trade_data.symbol
         price = float(trade_data.price)
-        
+
         with self._stream_lock:
             self._latest_trades[symbol] = trade_data
             self._latest_prices[symbol] = price
-            self._price_buffer[symbol].append({
-                'price': price,
-                'volume': float(trade_data.size),
-                'timestamp': trade_data.timestamp
-            })
+            self._price_buffer[symbol].append(
+                {
+                    "price": price,
+                    "volume": float(trade_data.size),
+                    "timestamp": trade_data.timestamp,
+                }
+            )
 
     async def _quote_callback(self, quote_data):
         """Handle incoming quote data"""
         symbol = quote_data.symbol
-        
+
         with self._stream_lock:
             self._latest_quotes[symbol] = quote_data
             # Update latest price with mid price
             if quote_data.bid_price and quote_data.ask_price:
-                mid_price = (float(quote_data.bid_price) + float(quote_data.ask_price)) / 2
+                mid_price = (
+                    float(quote_data.bid_price) + float(quote_data.ask_price)
+                ) / 2
                 self._latest_prices[symbol] = mid_price
 
     async def _bar_callback(self, bar_data):
         """Handle incoming bar data"""
         symbol = bar_data.symbol
-        
+
         with self._stream_lock:
             self._latest_bars[symbol] = bar_data
-            self._bar_buffer[symbol].append({
-                'open': float(bar_data.open),
-                'high': float(bar_data.high),
-                'low': float(bar_data.low),
-                'close': float(bar_data.close),
-                'volume': float(bar_data.volume),
-                'timestamp': bar_data.timestamp
-            })
+            self._bar_buffer[symbol].append(
+                {
+                    "open": float(bar_data.open),
+                    "high": float(bar_data.high),
+                    "low": float(bar_data.low),
+                    "close": float(bar_data.close),
+                    "volume": float(bar_data.volume),
+                    "timestamp": bar_data.timestamp,
+                }
+            )
 
-    def start_real_time_streaming(self, symbols: List[str], data_types: List[str] = None) -> None:
+    def start_real_time_streaming(
+        self, symbols: List[str], data_types: List[str] = None
+    ) -> None:
         """
         Start real-time streaming for specified symbols and data types
-        
+
         Args:
             symbols: List of crypto symbols to stream (e.g., ['BTC/USD', 'ETH/USD'])
-            data_types: List of data types to stream ['trades', 'quotes', 'bars']. 
+            data_types: List of data types to stream ['trades', 'quotes', 'bars'].
                        Defaults to all types if None.
         """
         if data_types is None:
-            data_types = ['trades', 'quotes', 'bars']
-        
+            data_types = ["trades", "quotes", "bars"]
+
         def run_stream():
             asyncio.set_event_loop(asyncio.new_event_loop())
             loop = asyncio.get_event_loop()
-            
+
             # Subscribe to data streams
-            if 'trades' in data_types:
+            if "trades" in data_types:
                 for symbol in symbols:
                     self.stream_client.subscribe_trades(self._trade_callback, symbol)
-            
-            if 'quotes' in data_types:
+
+            if "quotes" in data_types:
                 for symbol in symbols:
                     self.stream_client.subscribe_quotes(self._quote_callback, symbol)
-            
-            if 'bars' in data_types:
+
+            if "bars" in data_types:
                 for symbol in symbols:
                     self.stream_client.subscribe_bars(self._bar_callback, symbol)
-            
+
             self._streaming_active = True
             loop.run_until_complete(self.stream_client.run())
-        
+
         if not self._streaming_active:
             self._stream_thread = threading.Thread(target=run_stream, daemon=True)
             self._stream_thread.start()
@@ -1083,7 +1105,7 @@ class CryptoTrader(TradingClient):
 
     def stop_real_time_streaming(self) -> None:
         """
-        Stop real-time streaming; streaming client doesn't have a 
+        Stop real-time streaming; streaming client doesn't have a
         direct stop method (thread will terminate when connection is closed)
         """
         if self._streaming_active:
@@ -1093,10 +1115,10 @@ class CryptoTrader(TradingClient):
     def get_latest_price(self, symbol: str) -> Optional[float]:
         """
         Get the latest price for a symbol from real-time data
-        
+
         Args:
             symbol: Crypto symbol (e.g., 'BTC/USD')
-            
+
         Returns:
             Latest price or None if not available
         """
@@ -1106,10 +1128,10 @@ class CryptoTrader(TradingClient):
     def get_latest_bar(self, symbol: str) -> Optional[Bar]:
         """
         Get the latest bar for a symbol from real-time data
-        
+
         Args:
             symbol: Crypto symbol (e.g., 'BTC/USD')
-            
+
         Returns:
             Latest bar or None if not available
         """
@@ -1119,10 +1141,10 @@ class CryptoTrader(TradingClient):
     def get_latest_quote(self, symbol: str) -> Optional[Any]:
         """
         Get the latest quote for a symbol from real-time data
-        
+
         Args:
             symbol: Crypto symbol (e.g., 'BTC/USD')
-            
+
         Returns:
             Latest quote or None if not available
         """
@@ -1132,11 +1154,11 @@ class CryptoTrader(TradingClient):
     def get_price_history(self, symbol: str, limit: int = 100) -> List[Dict]:
         """
         Get recent price history from the buffer
-        
+
         Args:
             symbol: Crypto symbol (e.g., 'BTC/USD')
             limit: Maximum number of data points to return
-            
+
         Returns:
             List of price data dictionaries
         """
@@ -1147,11 +1169,11 @@ class CryptoTrader(TradingClient):
     def get_bar_history(self, symbol: str, limit: int = 50) -> List[Dict]:
         """
         Get recent bar history from the buffer
-        
+
         Args:
             symbol: Crypto symbol (e.g., 'BTC/USD')
             limit: Maximum number of bars to return
-            
+
         Returns:
             List of bar data dictionaries
         """
@@ -1162,10 +1184,10 @@ class CryptoTrader(TradingClient):
     def get_real_time_ohlc(self, symbol: str) -> Optional[Dict[str, float]]:
         """
         Get real-time OHLC data for a symbol
-        
+
         Args:
             symbol: Crypto symbol (e.g., 'BTC/USD')
-            
+
         Returns:
             Dictionary with 'open', 'high', 'low', 'close', 'volume' or None
         """
@@ -1173,73 +1195,79 @@ class CryptoTrader(TradingClient):
             bar = self._latest_bars.get(symbol)
             if bar:
                 return {
-                    'open': float(bar.open),
-                    'high': float(bar.high),
-                    'low': float(bar.low),
-                    'close': float(bar.close),
-                    'volume': float(bar.volume),
-                    'timestamp': bar.timestamp
+                    "open": float(bar.open),
+                    "high": float(bar.high),
+                    "low": float(bar.low),
+                    "close": float(bar.close),
+                    "volume": float(bar.volume),
+                    "timestamp": bar.timestamp,
                 }
             return None
 
     def get_all_streaming_symbols(self) -> List[str]:
         """
         Get list of all symbols currently being streamed
-        
+
         Returns:
             List of symbols with active data streams
         """
         with self._stream_lock:
-            return list(set(
-                list(self._latest_prices.keys()) + 
-                list(self._latest_bars.keys()) + 
-                list(self._latest_quotes.keys()) + 
-                list(self._latest_trades.keys())
-            ))
+            return list(
+                set(
+                    list(self._latest_prices.keys())
+                    + list(self._latest_bars.keys())
+                    + list(self._latest_quotes.keys())
+                    + list(self._latest_trades.keys())
+                )
+            )
 
     def is_streaming_active(self) -> bool:
         """Check if real-time streaming is active"""
         return self._streaming_active
 
-    def add_streaming_callback(self, symbol: str, data_type: str, callback: Callable) -> None:
+    def add_streaming_callback(
+        self, symbol: str, data_type: str, callback: Callable
+    ) -> None:
         """
         Add a custom callback for streaming data
-        
+
         Args:
             symbol: Crypto symbol (e.g., 'BTC/USD')
             data_type: Type of data ('trades', 'quotes', 'bars')
             callback: Async function to handle the data
         """
-        if data_type == 'trades':
+        if data_type == "trades":
             self.stream_client.subscribe_trades(callback, symbol)
-        elif data_type == 'quotes':
+        elif data_type == "quotes":
             self.stream_client.subscribe_quotes(callback, symbol)
-        elif data_type == 'bars':
+        elif data_type == "bars":
             self.stream_client.subscribe_bars(callback, symbol)
         else:
-            raise ValueError(f"Invalid data_type: {data_type}. Must be 'trades', 'quotes', or 'bars'")
+            raise ValueError(
+                f"Invalid data_type: {data_type}. Must be 'trades', 'quotes', or 'bars'"
+            )
 
     def get_market_data_summary(self) -> Dict[str, Dict]:
         """
         Get a summary of all available real-time market data
-        
+
         Returns:
             Dictionary with symbol as key and data summary as value
         """
         with self._stream_lock:
             summary = {}
             all_symbols = self.get_all_streaming_symbols()
-            
+
             for symbol in all_symbols:
                 summary[symbol] = {
-                    'latest_price': self._latest_prices.get(symbol),
-                    'has_bar_data': symbol in self._latest_bars,
-                    'has_quote_data': symbol in self._latest_quotes,
-                    'has_trade_data': symbol in self._latest_trades,
-                    'price_buffer_size': len(self._price_buffer.get(symbol, [])),
-                    'bar_buffer_size': len(self._bar_buffer.get(symbol, []))
+                    "latest_price": self._latest_prices.get(symbol),
+                    "has_bar_data": symbol in self._latest_bars,
+                    "has_quote_data": symbol in self._latest_quotes,
+                    "has_trade_data": symbol in self._latest_trades,
+                    "price_buffer_size": len(self._price_buffer.get(symbol, [])),
+                    "bar_buffer_size": len(self._bar_buffer.get(symbol, [])),
                 }
-            
+
             return summary
 
 

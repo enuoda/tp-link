@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 Primary Trading Application with Real-Time Streaming
 
