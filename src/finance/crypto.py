@@ -156,10 +156,19 @@ class CryptoTrader(TradingClient):
         )
 
         # Initialize streaming client for real-time data
+        # Note: WebSocket client needs different URL format than HTTP API
+        api_base_url = os.getenv("ALPACA_API_BASE_URL", "https://paper-api.alpaca.markets")
+        if "paper-api" in api_base_url:
+            # Convert HTTP URL to WebSocket URL for paper trading
+            ws_url = api_base_url.replace("https://", "wss://")
+        else:
+            # For live trading, use the live WebSocket URL
+            ws_url = "wss://stream.data.alpaca.markets"
+        
         self.stream_client = CryptoDataStream(
             api_key=os.getenv("ALPACA_API_KEY"),
             secret_key=os.getenv("ALPACA_SECRET_KEY"),
-            url_override=os.getenv("ALPACA_API_BASE_URL"),
+            url_override=ws_url,
         )
 
         self.data_feed = CryptoFeed.US
