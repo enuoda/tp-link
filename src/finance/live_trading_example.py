@@ -18,14 +18,15 @@ Requirements:
 """
 
 import asyncio
-import time
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 import json
+import logging
+import time
+from typing import Dict, List, Optional
 
-from crypto import CryptoTrader
+from .crypto import CryptoTrader
+
 from alpaca.trading.enums import OrderSide
 
 # Configure logging

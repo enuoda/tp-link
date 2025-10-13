@@ -15,7 +15,7 @@ from datetime import datetime
 from itertools import zip_longest
 import os
 import threading
-from typing import Any, Dict, List, override, Tuple, Union, Optional, Callable
+from typing import Any, Dict, List, Tuple, Union, Optional, Callable
 from zoneinfo import ZoneInfo
 
 # numerics
@@ -83,7 +83,7 @@ def get_historical_bars(
 
 
 def retrieve_crypto_data(
-    symbols: str | List[str],
+    symbols: Union[str, List[str]],
     start_time,
     end_time,
     frequency: TimeFrameUnit = TimeFrame(1, TimeFrameUnit.Hour),
@@ -162,8 +162,8 @@ class CryptoTrader(TradingClient):
             url_override=os.getenv("ALPACA_API_BASE_URL")
         )
 
-        self.data_feed = CryptoFeed("US")
-        self.default_timeframe = TimeFrame(1, TimeFrameUnit.Min)
+        self.data_feed = CryptoFeed.US
+        self.default_timeframe = TimeFrame(1, TimeFrameUnit.Minute)
         
         # Real-time data storage
         self._latest_prices: Dict[str, float] = {}
@@ -200,7 +200,7 @@ class CryptoTrader(TradingClient):
         print(f"\t- Equity          : {self.acct.equity}")
         print(f"\t- Portfolio Value : {self.acct.portfolio_value}")
 
-    @override
+    # @override
     def submit_order(self, order_data: OrderRequest) -> Union[Order, Dict[str, Any]]:
         return super().submit_order(order_data)
 
@@ -864,7 +864,7 @@ class CryptoTrader(TradingClient):
 
     # ===== gather information on assets =====
 
-    @override
+    # @# @override
     def get_asset(symbol_or_asset_id: str) -> Union[Asset, Dict[str, Any]]:
         """
         Return type has the following parameters:
@@ -904,10 +904,10 @@ class CryptoTrader(TradingClient):
     # retrieving market data
     # ==================================================
 
-    @override
+    # @# @override
     def get_crypto_bars(
         self,
-        symbol_or_symbols: str | List[str],
+        symbol_or_symbols: Union[str, List[str]],
         timeframe: TimeFrame = None,
         start: datetime = None,
         end: datetime = None,
@@ -926,7 +926,7 @@ class CryptoTrader(TradingClient):
         )
         return self.data_client.get_crypto_bars(req, feed=self.data_feed)
     
-    @override
+    # @override
     def get_crypto_latest_bar(
         self,
         symbol_or_symbols: str,
@@ -947,7 +947,7 @@ class CryptoTrader(TradingClient):
 
     def retrieve_crypto_data(
         self,
-        symbol_or_symbols: str | List[str],
+        symbol_or_symbols: Union[str, List[str]],
         timeframe: TimeFrame = None,
         start: datetime = None,
         end: datetime = None,
