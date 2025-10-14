@@ -26,6 +26,7 @@ import time
 from typing import Dict, List, Optional
 
 from .crypto import CryptoTrader
+from .benchmarks import load_benchmarks, is_stale, list_groups, entry_exit_signal
 
 from alpaca.trading.enums import OrderSide
 
@@ -107,6 +108,17 @@ class LiveTradingBot:
 
         logger.info(f"Initialized LiveTradingBot with symbols: {self.symbols}")
         logger.info(f"Paper trading: {paper}")
+
+        # Load benchmarks (if available)
+        self.benchmarks = None
+        try:
+            self.benchmarks = load_benchmarks()
+            if is_stale(self.benchmarks):
+                logger.warning("Benchmarks snapshot is stale (>7 days). Consider recomputing.")
+            else:
+                logger.info("Loaded benchmarks snapshot for live signals.")
+        except Exception as e:
+            logger.warning(f"No benchmarks available: {e}")
 
     def start_streaming(self):
         """Start real-time data streaming"""
@@ -585,23 +597,44 @@ class TradingPartner:
 
     def _execute_trading_logic(self, symbols: List[str]):
         """Execute trading logic based on real-time data"""
-        for symbol in symbols:
-            # Simple momentum-based trading logic
-            price_history = self.crypto_trader.get_price_history(symbol, limit=20)
-
-            if len(price_history) >= 10:
-                prices = [p["price"] for p in price_history]
-                price_change = (prices[-1] - prices[0]) / prices[0]
-
-                # Simple trading signals
-                if price_change > 0.02:  # 2% up
-                    logger.info(f"🟢 BUY signal: {symbol} up {price_change:.2%}")
-                    # Uncomment to execute trades:
-                    # self.crypto_trader.buy_market_order(symbol, notional=100)
-                elif price_change < -0.02:  # 2% down
-                    logger.info(f"🔴 SELL signal: {symbol} down {price_change:.2%}")
-                    # Uncomment to execute trades:
-                    # self.crypto_trader.sell_market_order(symbol, notional=100)
+        # If benchmarks are loaded, evaluate spread signals for known groups
+        if self.benchmarks is not None:
+            groups = list_groups(self.benchmarks)
+            if not groups:
+                return
+            # Build a price map from latest prices (best-effort)
+            price_map = {}
+            for sym in self.symbols:
+                p = self.crypto_trader.get_latest_price(sym)
+                if p is not None:
+                    price_map[sym] = float(p)
+            # Evaluate up to 10 groups
+            for g in groups[:10]:
+                needed = set(g.get("assets", []))
+                if not needed.issubset(price_map.keys()):
+                    continue
+                res = entry_exit_signal(g, price_map)
+                z = res.get("zscore")
+                sig = res.get("signal")
+                logger.info(f"Spread {g['id']}: z={z:.2f} -> {sig}")
+                # Example wiring to orders (kept commented)
+                # if sig == "BUY_SPREAD":
+                #     self._enter_spread_long(g, price_map)
+                # elif sig == "SELL_SPREAD":
+                #     self._enter_spread_short(g, price_map)
+                # elif sig == "EXIT":
+                #     self._exit_spread(g)
+        else:
+            # Fallback: keep the simple per-symbol momentum preview
+            for symbol in symbols:
+                price_history = self.crypto_trader.get_price_history(symbol, limit=20)
+                if len(price_history) >= 10:
+                    prices = [p['price'] for p in price_history]
+                    price_change = (prices[-1] - prices[0]) / prices[0]
+                    if price_change > 0.02:
+                        logger.info(f"BUY signal: {symbol} up {price_change:.2%}")
+                    elif price_change < -0.02:
+                        logger.info(f"SELL signal: {symbol} down {price_change:.2%}")
 
     def monitor_data_only(self, symbols: List[str] = None, duration_minutes: int = 10):
         """

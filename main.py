@@ -28,6 +28,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 # Import with error handling
 try:
     from src.finance.live_trading_example import TradingPartner
+    from src.trading_strategy.compute_benchmarks import (
+        compute_benchmarks,
+        save_benchmarks,
+    )
 
 except ImportError as e:
     print(f"❌ Import error: {e}")
@@ -83,9 +87,11 @@ def main() -> int:
     Returns:
         Exit code (0 for success, 1 for error)
     """
+
+    global crypto_universe
     
     parser = argparse.ArgumentParser(description='Crypto Trading Application')
-    parser.add_argument('--mode', choices=['trade', 'monitor', 'test', 'account'], 
+    parser.add_argument('--mode', choices=['trade', 'monitor', 'test', 'account', 'compute-benchmarks'], 
                        default='monitor', help='Application mode')
     parser.add_argument('--symbols', nargs='+', 
                        default=['BTC/USD', 'ETH/USD'],
@@ -94,6 +100,14 @@ def main() -> int:
                        help='Duration in minutes')
     parser.add_argument('--live', action='store_true',
                        help='Use live trading (default: paper trading)')
+    # Benchmark computation options
+    parser.add_argument('--days', type=int, default=30,
+                        help='Lookback days for benchmark computation')
+    parser.add_argument('--time-scale', type=str, default='hour',
+                        choices=['min', 'minute', 'minutes', 'm', 'hour', 'hours', 'h', 'day', 'days', 'd'],
+                        help='Time scale for historical bars')
+    parser.add_argument('--max-groups', type=int, default=10,
+                        help='Max number of cointegration pairs to keep')
     
     args = parser.parse_args()
     
@@ -122,8 +136,29 @@ def main() -> int:
         
     elif args.mode == 'monitor':
         logger.info("📡 Starting monitoring mode...")
-        success = trader.monitor_data_only(args.symbols, args.duration)
+        success = trader.monitor_data_only(crypto_universe[:10], args.duration)
         return 0 if success else 1
+
+    elif args.mode == 'compute-benchmarks':
+        # Use provided symbols if given, otherwise default to crypto_universe
+        syms = args.symbols if args.symbols else crypto_universe
+        logger.info("🧮 Computing pairwise cointegration benchmarks")
+        logger.info(f"Symbols: {syms}")
+        logger.info(f"Lookback: {args.days} days, time scale: {args.time_scale}, max-groups: {args.max_groups}")
+
+        try:
+            payload = compute_benchmarks(
+                symbols=syms,
+                days_back=args.days,
+                time_scale=args.time_scale,
+                max_groups=args.max_groups,
+            )
+            out_path = save_benchmarks(payload, "data/benchmarks")
+            logger.info(f"✅ Benchmarks saved: {out_path}")
+            return 0
+        except Exception as e:
+            logger.error(f"❌ Failed to compute benchmarks: {e}")
+            return 1
         
     # elif args.mode == 'test':
     #     logger.info("🧪 Running tests...")
@@ -137,5 +172,27 @@ def main() -> int:
     #     return 1
 
 if __name__ == "__main__":
+    crypto_universe = [
+        "AAVE/USD",
+        "AVAX/USD",
+        "BAT/USD",
+        "BCH/USD",
+        "BTC/USD",
+        "CRV/USD",
+        "DOGE/USD",
+        "DOT/USD",
+        "ETH/USD",
+        "GRT/USD",
+        "LINK/USD",
+        "LTC/USD",
+        "MKR/USD",
+        "SHIB/USD",
+        "SUSHI/USD",
+        "UNI/USD",
+        "USDC/USD",
+        "USDT/USD",
+        "XTZ/USD",
+        "YFI/USD",
+    ]
     exit_code = main()
     sys.exit(exit_code)

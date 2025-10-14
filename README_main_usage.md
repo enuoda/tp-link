@@ -284,6 +284,27 @@ python -c "import logging; logging.basicConfig(level=logging.DEBUG)" main.py --m
 4. **Add risk management** - Implement proper position sizing
 5. **Monitor performance** - Track results and optimize
 
+## 📚 Benchmarks (weekly)
+
+Run a weekly job to compute cointegration benchmarks and persist JSON snapshots.
+
+```bash
+# Option A: via module
+python3 -m src.trading_strategy.compute_benchmarks \
+  --symbols BTC/USD ETH/USD SOL/USD ADA/USD \
+  --days 30 --time-scale hour --max-groups 10
+
+# Option B: via main.py mode
+python3 main.py --mode compute-benchmarks \
+  --symbols BTC/USD ETH/USD SOL/USD ADA/USD \
+  --days 30 --time-scale hour --max-groups 10
+```
+
+This writes `data/benchmarks/benchmarks_YYYY-WW.json` and updates `data/benchmarks/benchmarks_latest.json`.
+Live trading will automatically load the latest benchmarks and evaluate spread z-scores
+for up to 10 configured groups. If no benchmarks are present or are stale (>7 days),
+the bot falls back to a simple momentum preview.
+
 ## 📁 File Structure
 
 The main.py application is organized with proper separation of concerns:

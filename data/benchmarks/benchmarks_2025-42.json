@@ -1,0 +1,13 @@
+{
+  "version": "1.1",
+  "computed_at_utc": "2025-10-14T01:22:30.869805+00:00",
+  "universe": [
+    "BTC/USD",
+    "ETH/USD",
+    "SOL/USD",
+    "ADA/USD"
+  ],
+  "lookback_days": 30,
+  "cointegration_groups": [],
+  "metrics": {}
+}

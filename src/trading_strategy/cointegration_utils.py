@@ -12,8 +12,8 @@ from statsmodels.tsa.vector_ar.vecm import coint_johansen
 import statsmodels.api as sm
 
 # project imports
-from finance import TIME_FRAMES
-from finance.crypto import fetch_crypto_data_for_cointegration
+from src.finance import TIME_FRAMES
+from src.finance.crypto import fetch_crypto_data_for_cointegration
 
 
 def _normalize_timeframe_key(time_scale: str) -> str:
