@@ -94,7 +94,7 @@ def main() -> int:
     parser.add_argument('--mode', choices=['trade', 'monitor', 'test', 'account', 'compute-benchmarks'], 
                        default='monitor', help='Application mode')
     parser.add_argument('--symbols', nargs='+', 
-                       default=['BTC/USD', 'ETH/USD'],
+                       default=crypto_universe,
                        help='Crypto symbols to trade/monitor')
     parser.add_argument('--duration', type=int, default=10,
                        help='Duration in minutes')
