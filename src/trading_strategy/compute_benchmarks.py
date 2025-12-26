@@ -20,9 +20,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import json
-# from itertools import combinations
+import logging
 import math
-# import os
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -36,6 +35,10 @@ from src.trading_strategy.cointegration_utils import (
     run_pairwise_cointegration,
 )
 from src.finance.crypto import fetch_crypto_data_for_cointegration
+from src.finance import TIME_FRAMES
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -87,22 +90,88 @@ def _half_life(spread: np.ndarray) -> float:
         return float("nan")
 
 
-def _align_arrays(symbols: List[str], days_back: int, time_scale_key) -> Tuple[np.ndarray, List[str]]:
-    # Use existing data fetcher; returns arrays aligned to a common timestamp index
-    price_arrays, sorted_symbols, _timestamps = fetch_crypto_data_for_cointegration(
-        symbols=symbols, days_back=days_back, frequency=time_scale_key
-    )
+def _normalize_time_scale(time_scale: str) -> str:
+    """Normalize time scale string to a valid TIME_FRAMES key."""
+    key = time_scale.strip().lower()
+    if key in {"min", "minute", "minutes", "m"}:
+        return "min"
+    if key in {"hour", "hours", "h"}:
+        return "hour"
+    if key in {"day", "days", "d"}:
+        return "day"
+    if key in TIME_FRAMES:
+        return key
+    logger.warning(f"Unknown time_scale '{time_scale}', defaulting to 'hour'")
+    return "hour"
+
+
+def _align_arrays(symbols: List[str], days_back: int, time_scale_key: str) -> Tuple[np.ndarray, List[str]]:
+    """
+    Fetch and align price arrays for given symbols.
+    
+    Args:
+        symbols: List of crypto symbols
+        days_back: Lookback period in days
+        time_scale_key: Time scale string (e.g., "hour", "day", "min")
+        
+    Returns:
+        Tuple of (stacked price array, list of symbols)
+    """
+    # Convert string key to TimeFrame object (FIX: was passing string directly)
+    normalized_key = _normalize_time_scale(time_scale_key)
+    frequency = TIME_FRAMES.get(normalized_key, TIME_FRAMES["hour"])
+    
+    logger.debug(f"Fetching data for {symbols} with frequency={frequency}")
+    
+    try:
+        price_arrays, sorted_symbols, _timestamps = fetch_crypto_data_for_cointegration(
+            symbols=symbols, days_back=days_back, frequency=frequency
+        )
+    except Exception as e:
+        logger.error(f"Failed to fetch data for {symbols}: {e}")
+        raise
+    
     arrays = [np.asarray(a, dtype=float) for a in price_arrays]
+    
+    # Log data quality info
+    for i, sym in enumerate(sorted_symbols):
+        valid_count = np.sum(~np.isnan(arrays[i]) & np.isfinite(arrays[i]))
+        logger.debug(f"  {sym}: {len(arrays[i])} points, {valid_count} valid")
+    
     return np.column_stack(arrays), list(sorted_symbols)
 
 
 def _pairs_payload(
-    symbols: List[str], days_back: int, time_scale: str, max_groups: int
+    symbols: List[str], days_back: int, time_scale: str, max_groups: int, p_threshold: float = 0.05
 ) -> List[GroupRecord]:
+    """
+    Run pairwise cointegration and build GroupRecord list.
+    
+    Args:
+        symbols: List of crypto symbols
+        days_back: Lookback period in days
+        time_scale: Time scale string
+        max_groups: Maximum groups to return
+        p_threshold: P-value threshold for cointegration
+        
+    Returns:
+        List of GroupRecord objects for cointegrated pairs
+    """
+    # Calculate expected number of pairs
+    n_symbols = len(symbols)
+    n_pairs = n_symbols * (n_symbols - 1) // 2
+    
+    logger.info(f"🔍 Running pairwise cointegration analysis...")
+    logger.info(f"   Symbols: {n_symbols}, Possible pairs: {n_pairs}")
+    logger.info(f"   Lookback: {days_back} days, Time scale: {time_scale}")
+    logger.info(f"   P-value threshold: {p_threshold}")
+    
     # Reuse existing pairwise runner to identify candidate pairs + rough stats
     mapping = run_pairwise_cointegration(
-        tickers=symbols, time_scale=time_scale, days_back=days_back, p_threshold=0.05
+        tickers=symbols, time_scale=time_scale, days_back=days_back, p_threshold=p_threshold
     )
+    
+    logger.info(f"   Found {len(mapping)} candidate pairs passing initial threshold")
 
     # Build base->full mapping (assume unique base, e.g., BTC/USD only)
     base_to_full: Dict[str, str] = {}
@@ -111,9 +180,15 @@ def _pairs_payload(
 
     # For selection scoring, recompute p-values and spread stats on aligned arrays
     groups: List[GroupRecord] = []
+    pairs_processed = 0
+    pairs_skipped_data = 0
+    pairs_skipped_error = 0
+    
     for (a_base, b_base), (hedge_ratio, std_spread) in mapping.items():
         a = base_to_full.get(a_base, a_base)
         b = base_to_full.get(b_base, b_base)
+        pairs_processed += 1
+        
         try:
             Y, ordered = _align_arrays([a, b], days_back, time_scale)
             x = Y[:, 0]
@@ -121,11 +196,18 @@ def _pairs_payload(
             mask = ~(np.isnan(x) | np.isnan(y) | np.isinf(x) | np.isinf(y))
             x = x[mask]
             y = y[mask]
+            
             if x.size < 10:
+                logger.debug(f"   {a}/{b}: Skipped - only {x.size} valid data points")
+                pairs_skipped_data += 1
                 continue
+                
             t_stat, p_val, _ = coint(x, y)
             spread = y - hedge_ratio * x
             hl = _half_life(spread)
+            
+            logger.debug(f"   {a}/{b}: t={t_stat:.3f}, p={p_val:.4f}, half_life={hl:.1f}")
+            
             vect = GroupVector(
                 weights={a: float(-hedge_ratio), b: 1.0},
                 spread_mean=float(np.nanmean(spread)),
@@ -148,8 +230,14 @@ def _pairs_payload(
                 zscore_thresholds={"entry": 2.0, "exit": 0.5},
             )
             groups.append(rec)
-        except Exception:
+            
+        except Exception as e:
+            logger.warning(f"   {a}/{b}: Error during analysis - {e}")
+            pairs_skipped_error += 1
             continue
+
+    logger.info(f"   Processed: {pairs_processed}, Groups created: {len(groups)}")
+    logger.info(f"   Skipped (insufficient data): {pairs_skipped_data}, Skipped (errors): {pairs_skipped_error}")
 
     # Rank and keep top
     groups.sort(key=lambda g: g.selection_score, reverse=True)
@@ -164,19 +252,36 @@ def compute_benchmarks(
     days_back: int = 30,
     time_scale: str = "hour",
     max_groups: int = 10,
+    p_threshold: float = 0.05,
 ) -> Dict:
+    """
+    Compute cointegration benchmarks for pairs trading.
+    
+    Args:
+        symbols: List of crypto symbols (e.g., ["BTC/USD", "ETH/USD"])
+        days_back: Lookback period in days for historical data
+        time_scale: Time scale for bars ("min", "hour", "day")
+        max_groups: Maximum number of cointegration groups to keep
+        p_threshold: P-value threshold for cointegration test (default 0.05).
+                     Higher values (e.g., 0.10, 0.15) are less strict and will
+                     find more pairs; lower values are more strict.
+    
+    Returns:
+        Dict containing benchmark payload with cointegration groups
+    """
     now = datetime.now(timezone.utc)
     payload = {
         "version": "1.1",
         "computed_at_utc": now.isoformat(),
         "universe": symbols,
         "lookback_days": int(days_back),
+        "p_threshold": float(p_threshold),
         "cointegration_groups": [],
         "metrics": {},
     }
 
     # Pairs only; rank strictly by ascending p-value
-    pair_groups = _pairs_payload(symbols, days_back, time_scale, max_groups * 5)
+    pair_groups = _pairs_payload(symbols, days_back, time_scale, max_groups * 5, p_threshold)
     # Sort by p-value from the first vector
     pair_groups.sort(
         key=lambda g: (g.vectors[0].p_value if g.vectors and g.vectors[0].p_value is not None else 1.0)
@@ -221,6 +326,8 @@ def _parse_args(argv: Optional[Sequence[str]] = None):
     p.add_argument("--days", type=int, default=30, help="Lookback days")
     p.add_argument("--time-scale", type=str, default="hour", help="min|hour|day")
     p.add_argument("--max-groups", type=int, default=10, help="Max groups to keep")
+    p.add_argument("--p-threshold", type=float, default=0.05, 
+                   help="P-value threshold for cointegration (default: 0.05). Higher values find more pairs.")
     p.add_argument("--out", type=str, default="data/benchmarks", help="Output directory")
     return p.parse_args(argv)
 
@@ -232,9 +339,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         days_back=args.days,
         time_scale=args.time_scale,
         max_groups=args.max_groups,
+        p_threshold=args.p_threshold,
     )
     save_benchmarks(payload, args.out)
     print(f"Saved benchmarks for {len(payload['cointegration_groups'])} groups to {args.out}")
+    print(f"Used p-value threshold: {args.p_threshold}")
     return 0
 
 

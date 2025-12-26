@@ -12,9 +12,9 @@ References
 import asyncio
 from collections import defaultdict, deque
 from datetime import datetime
-from itertools import zip_longest
 import os
 import threading
+import time
 from typing import Any, Dict, List, Tuple, Union, Optional, Callable
 from zoneinfo import ZoneInfo
 
@@ -258,6 +258,22 @@ class CryptoTrader(TradingClient):
         self._streaming_active = False
         self._stream_thread = None
         self._stream_lock = threading.Lock()
+        
+        # Enhanced streaming management
+        self._streaming_symbols: List[str] = []
+        self._streaming_data_types: List[str] = []
+        self._last_data_received: Dict[str, datetime] = {}
+        self._reconnect_attempts = 0
+        self._max_reconnect_attempts = 5
+        self._reconnect_delay_base = 1.0  # seconds, exponential backoff base
+        self._connection_healthy = threading.Event()
+        self._stop_streaming = threading.Event()
+        self._external_bar_callbacks: List[Callable] = []
+        
+        # Debug tracking
+        self._debug_streaming = True  # Set to False to reduce logging
+        self._data_received_count: Dict[str, int] = {}  # symbol -> count of data points
+        self._first_data_logged: set = set()  # Track which symbols we've logged first data for
 
         # check trading account
         # You can check definition of each field in the following documents
@@ -1067,7 +1083,7 @@ class CryptoTrader(TradingClient):
 
         sorted_symbols = data.index.get_level_values("symbol").unique() 
         ohlcv = data.values.reshape(
-            len(symbols), len(data.loc[symbols[0]]), len(data.columns)
+            len(sorted_symbols), len(data.loc[sorted_symbols[0]]), len(data.columns)
         )
 
         # squeeze to remove redundant outer dimension if only one symbol is requested
@@ -1098,42 +1114,65 @@ class CryptoTrader(TradingClient):
     # ==================================================
 
     async def _trade_callback(self, trade_data):
-        """Handle incoming trade data"""
-        symbol = trade_data.symbol
-        price = float(trade_data.price)
+        """Handle incoming trade data with exception handling"""
+        try:
+            symbol = trade_data.symbol
+            price = float(trade_data.price)
 
-        with self._stream_lock:
-            self._latest_trades[symbol] = trade_data
-            self._latest_prices[symbol] = price
-            self._price_buffer[symbol].append(
-                {
-                    "price": price,
-                    "volume": float(trade_data.size),
-                    "timestamp": trade_data.timestamp,
-                }
-            )
+            with self._stream_lock:
+                self._latest_trades[symbol] = trade_data
+                self._latest_prices[symbol] = price
+                self._price_buffer[symbol].append(
+                    {
+                        "price": price,
+                        "volume": float(trade_data.size),
+                        "timestamp": trade_data.timestamp,
+                    }
+                )
+                self._last_data_received[symbol] = datetime.now(ZoneInfo("UTC"))
+                self._connection_healthy.set()
+                
+                # Debug: Track data reception
+                self._data_received_count[symbol] = self._data_received_count.get(symbol, 0) + 1
+                if self._debug_streaming and symbol not in self._first_data_logged:
+                    self._first_data_logged.add(symbol)
+                    print(f"📥 First TRADE data received for {symbol}: ${price:.2f}")
+        except Exception as e:
+            print(f"Error in trade callback for {getattr(trade_data, 'symbol', 'unknown')}: {e}")
 
     async def _quote_callback(self, quote_data):
-        """Handle incoming quote data"""
-        symbol = quote_data.symbol
+        """Handle incoming quote data with exception handling"""
+        try:
+            symbol = quote_data.symbol
 
-        with self._stream_lock:
-            self._latest_quotes[symbol] = quote_data
-            # Update latest price with mid price
-            if quote_data.bid_price and quote_data.ask_price:
-                mid_price = (
-                    float(quote_data.bid_price) + float(quote_data.ask_price)
-                ) / 2
-                self._latest_prices[symbol] = mid_price
+            with self._stream_lock:
+                self._latest_quotes[symbol] = quote_data
+                # Update latest price with mid price
+                if quote_data.bid_price and quote_data.ask_price:
+                    mid_price = (
+                        float(quote_data.bid_price) + float(quote_data.ask_price)
+                    ) / 2
+                    self._latest_prices[symbol] = mid_price
+                    
+                    # Debug: Track data reception
+                    self._data_received_count[symbol] = self._data_received_count.get(symbol, 0) + 1
+                    if self._debug_streaming and symbol not in self._first_data_logged:
+                        self._first_data_logged.add(symbol)
+                        print(f"📥 First QUOTE data received for {symbol}: ${mid_price:.2f}")
+                        
+                self._last_data_received[symbol] = datetime.now(ZoneInfo("UTC"))
+                self._connection_healthy.set()
+        except Exception as e:
+            print(f"Error in quote callback for {getattr(quote_data, 'symbol', 'unknown')}: {e}")
 
     async def _bar_callback(self, bar_data):
-        """Handle incoming bar data"""
-        symbol = bar_data.symbol
+        """Handle incoming bar data with exception handling"""
+        try:
+            symbol = bar_data.symbol
 
-        with self._stream_lock:
-            self._latest_bars[symbol] = bar_data
-            self._bar_buffer[symbol].append(
-                {
+            with self._stream_lock:
+                self._latest_bars[symbol] = bar_data
+                bar_dict = {
                     "open": float(bar_data.open),
                     "high": float(bar_data.high),
                     "low": float(bar_data.low),
@@ -1141,55 +1180,138 @@ class CryptoTrader(TradingClient):
                     "volume": float(bar_data.volume),
                     "timestamp": bar_data.timestamp,
                 }
-            )
+                self._bar_buffer[symbol].append(bar_dict)
+                self._last_data_received[symbol] = datetime.now(ZoneInfo("UTC"))
+                self._connection_healthy.set()
+            
+            # Call external bar callbacks (for rolling buffer integration)
+            for callback in self._external_bar_callbacks:
+                try:
+                    callback(bar_data)
+                except Exception as cb_err:
+                    print(f"Error in external bar callback: {cb_err}")
+        except Exception as e:
+            print(f"Error in bar callback for {getattr(bar_data, 'symbol', 'unknown')}: {e}")
 
     def start_real_time_streaming(
         self, symbols: List[str], data_types: List[str] = None
-    ) -> None:
+    ) -> bool:
         """
-        Start real-time streaming for specified symbols and data types
+        Start real-time streaming for specified symbols and data types with reconnection support
 
         Args:
             symbols: List of crypto symbols to stream (e.g., ['BTC/USD', 'ETH/USD'])
             data_types: List of data types to stream ['trades', 'quotes', 'bars'].
                        Defaults to all types if None.
+        
+        Returns:
+            True if streaming started successfully, False otherwise
         """
         if data_types is None:
             data_types = ["trades", "quotes", "bars"]
+        
+        # Store for potential reconnection
+        self._streaming_symbols = symbols
+        self._streaming_data_types = data_types
+        self._stop_streaming.clear()
+        self._connection_healthy.clear()
 
-        def run_stream():
-            asyncio.set_event_loop(asyncio.new_event_loop())
-            loop = asyncio.get_event_loop()
+        def run_stream_with_reconnect():
+            while not self._stop_streaming.is_set():
+                try:
+                    # Create a fresh event loop for this thread
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    
+                    # Re-create stream client for fresh connection
+                    self.stream_client = CryptoDataStream(
+                        api_key=os.getenv("ALPACA_API_KEY"),
+                        secret_key=os.getenv("ALPACA_SECRET_KEY"),
+                        feed=CryptoFeed.US,
+                    )
 
-            # Subscribe to data streams
-            if "trades" in data_types:
-                for symbol in symbols:
-                    self.stream_client.subscribe_trades(self._trade_callback, symbol)
+                    # Subscribe to data streams
+                    if "trades" in data_types:
+                        for symbol in symbols:
+                            self.stream_client.subscribe_trades(self._trade_callback, symbol)
 
-            if "quotes" in data_types:
-                for symbol in symbols:
-                    self.stream_client.subscribe_quotes(self._quote_callback, symbol)
+                    if "quotes" in data_types:
+                        for symbol in symbols:
+                            self.stream_client.subscribe_quotes(self._quote_callback, symbol)
 
-            if "bars" in data_types:
-                for symbol in symbols:
-                    self.stream_client.subscribe_bars(self._bar_callback, symbol)
+                    if "bars" in data_types:
+                        for symbol in symbols:
+                            self.stream_client.subscribe_bars(self._bar_callback, symbol)
 
-            self._streaming_active = True
-            loop.run_until_complete(self.stream_client.run())
+                    self._streaming_active = True
+                    self._reconnect_attempts = 0
+                    print(f"✅ Started real-time streaming for {symbols}")
+                    print(f"📡 Subscribing to data types: {data_types}")
+                    
+                    # Run the stream (blocking until disconnection)
+                    # Note: CryptoDataStream.run() is the public API method
+                    try:
+                        self.stream_client.run()
+                    except Exception as stream_err:
+                        print(f"⚠️ Stream run error: {stream_err}")
+                        raise
+                    
+                except Exception as e:
+                    self._streaming_active = False
+                    self._connection_healthy.clear()
+                    
+                    if self._stop_streaming.is_set():
+                        print("Streaming stopped by user request")
+                        break
+                    
+                    self._reconnect_attempts += 1
+                    if self._reconnect_attempts > self._max_reconnect_attempts:
+                        print(f"❌ Max reconnection attempts ({self._max_reconnect_attempts}) exceeded. Giving up.")
+                        break
+                    
+                    # Exponential backoff
+                    delay = self._reconnect_delay_base * (2 ** (self._reconnect_attempts - 1))
+                    delay = min(delay, 60.0)  # Cap at 60 seconds
+                    print(f"⚠️ Stream disconnected: {e}. Reconnecting in {delay:.1f}s (attempt {self._reconnect_attempts}/{self._max_reconnect_attempts})")
+                    
+                    # Wait before reconnecting (interruptible)
+                    if self._stop_streaming.wait(timeout=delay):
+                        break  # Stop requested during wait
+                finally:
+                    try:
+                        loop.close()
+                    except:
+                        pass
+            
+            self._streaming_active = False
+            print("🔚 Streaming thread exited")
 
         if not self._streaming_active:
-            self._stream_thread = threading.Thread(target=run_stream, daemon=True)
+            self._stream_thread = threading.Thread(target=run_stream_with_reconnect, daemon=True)
             self._stream_thread.start()
-            print(f"Started real-time streaming for {symbols}")
+            return True
+        else:
+            print("Streaming already active")
+            return True
 
     def stop_real_time_streaming(self) -> None:
         """
-        Stop real-time streaming; streaming client doesn't have a
-        direct stop method (thread will terminate when connection is closed)
+        Stop real-time streaming gracefully
         """
-        if self._streaming_active:
+        if self._streaming_active or self._stream_thread is not None:
+            print("Stopping real-time streaming...")
+            self._stop_streaming.set()
             self._streaming_active = False
-            print("Real-time streaming stopped")
+            
+            # Give the thread a moment to clean up
+            if self._stream_thread is not None and self._stream_thread.is_alive():
+                self._stream_thread.join(timeout=5.0)
+            
+            # Clear state
+            self._streaming_symbols = []
+            self._streaming_data_types = []
+            self._connection_healthy.clear()
+            print("✅ Real-time streaming stopped")
 
     def get_latest_price(self, symbol: str) -> Optional[float]:
         """
@@ -1304,6 +1426,101 @@ class CryptoTrader(TradingClient):
         """Check if real-time streaming is active"""
         return self._streaming_active
 
+    def wait_for_data(self, symbols: List[str] = None, timeout_secs: float = 30.0) -> bool:
+        """
+        Block until data is received for the specified symbols or timeout occurs.
+        
+        Args:
+            symbols: List of symbols to wait for (defaults to all streaming symbols)
+            timeout_secs: Maximum time to wait in seconds
+            
+        Returns:
+            True if data was received for all symbols, False on timeout
+        """
+        if symbols is None:
+            symbols = self._streaming_symbols
+        
+        if not symbols:
+            return True  # Nothing to wait for
+        
+        start_time = datetime.now()
+        check_interval = 0.1  # seconds
+        
+        while (datetime.now() - start_time).total_seconds() < timeout_secs:
+            with self._stream_lock:
+                # Check if we have data for all requested symbols
+                all_have_data = all(
+                    symbol in self._latest_prices or symbol in self._latest_bars
+                    for symbol in symbols
+                )
+            
+            if all_have_data:
+                return True
+            
+            time.sleep(check_interval)
+        
+        # Timeout - report which symbols are missing data
+        with self._stream_lock:
+            missing = [s for s in symbols if s not in self._latest_prices and s not in self._latest_bars]
+        print(f"⚠️ Timeout waiting for data. Missing symbols: {missing}")
+        return False
+
+    def get_connection_health(self) -> Dict[str, Any]:
+        """
+        Get health status of the streaming connection
+        
+        Returns:
+            Dictionary with health metrics
+        """
+        with self._stream_lock:
+            now = datetime.now(ZoneInfo("UTC"))
+            symbol_status = {}
+            
+            for symbol in self._streaming_symbols:
+                last_received = self._last_data_received.get(symbol)
+                if last_received:
+                    age_secs = (now - last_received).total_seconds()
+                    symbol_status[symbol] = {
+                        "last_data_age_secs": age_secs,
+                        "healthy": age_secs < 60.0,  # Consider stale if >60s
+                        "has_price": symbol in self._latest_prices,
+                        "has_bar": symbol in self._latest_bars,
+                    }
+                else:
+                    symbol_status[symbol] = {
+                        "last_data_age_secs": None,
+                        "healthy": False,
+                        "has_price": symbol in self._latest_prices,
+                        "has_bar": symbol in self._latest_bars,
+                    }
+            
+            return {
+                "streaming_active": self._streaming_active,
+                "connection_healthy": self._connection_healthy.is_set(),
+                "reconnect_attempts": self._reconnect_attempts,
+                "symbols": symbol_status,
+            }
+
+    def register_bar_callback(self, callback: Callable) -> None:
+        """
+        Register an external callback to be called when bar data is received.
+        Useful for integrating with rolling buffers or other data processors.
+        
+        Args:
+            callback: Function that accepts bar_data as argument
+        """
+        self._external_bar_callbacks.append(callback)
+
+    def unregister_bar_callback(self, callback: Callable) -> None:
+        """
+        Unregister a previously registered bar callback.
+        
+        Args:
+            callback: The callback function to remove
+        """
+        if callback in self._external_bar_callbacks:
+            self._external_bar_callbacks.remove(callback)
+
     def add_streaming_callback(
         self, symbol: str, data_type: str, callback: Callable
     ) -> None:
@@ -1348,6 +1565,46 @@ class CryptoTrader(TradingClient):
                 }
 
             return summary
+
+    def get_streaming_debug_info(self) -> str:
+        """
+        Get detailed debug information about streaming status.
+        
+        Returns:
+            Formatted string with debug information
+        """
+        with self._stream_lock:
+            lines = [
+                "=" * 60,
+                "🔍 STREAMING DEBUG INFO",
+                "=" * 60,
+                f"Streaming active flag: {self._streaming_active}",
+                f"Stream thread alive: {self._stream_thread.is_alive() if self._stream_thread else 'No thread'}",
+                f"Connection healthy event: {self._connection_healthy.is_set()}",
+                f"Stop streaming event: {self._stop_streaming.is_set()}",
+                f"Reconnect attempts: {self._reconnect_attempts}",
+                f"Subscribed symbols: {self._streaming_symbols}",
+                f"Subscribed data types: {self._streaming_data_types}",
+                "",
+                "DATA RECEPTION:",
+            ]
+            
+            for symbol in self._streaming_symbols:
+                count = self._data_received_count.get(symbol, 0)
+                price = self._latest_prices.get(symbol)
+                last_recv = self._last_data_received.get(symbol)
+                
+                if last_recv:
+                    age = (datetime.now(ZoneInfo("UTC")) - last_recv).total_seconds()
+                    age_str = f"{age:.1f}s ago"
+                else:
+                    age_str = "never"
+                
+                price_str = f"${price:.2f}" if price else "N/A"
+                lines.append(f"  {symbol}: {count} msgs, price={price_str}, last={age_str}")
+            
+            lines.append("=" * 60)
+            return "\n".join(lines)
         
 
 # ==================================================
@@ -1811,9 +2068,13 @@ def compare_symbols_normalized(
 
 
 if __name__ == "__main__":
-
-    from . import CRYPTO_TICKERS, BTC_PAIRS, USDT_PAIRS, USDC_PAIRS, USD_PAIRS
-    from . import NOW, PAST_N_YEARS, TIME_FRAMES
+    import sys
+    from pathlib import Path
+    # Add parent directory to path for direct script execution
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+    
+    from src.finance import CRYPTO_TICKERS, BTC_PAIRS, USDT_PAIRS, USDC_PAIRS, USD_PAIRS
+    from src.finance import NOW, PAST_N_YEARS, TIME_FRAMES
 
     # ===== specify data to be retrieved =====
 
@@ -1831,4 +2092,4 @@ if __name__ == "__main__":
         limit=limit,
     )
 
-    # plot_df(df)
+    plot_df(df)

@@ -6,18 +6,16 @@
 # stdlib
 import datetime
 import time
-from typing import Any, Dict, List
 
 # numerics
 import numpy as np
 
 # trading
 from alpaca.common.exceptions import APIError
-from alpaca.trading.enums import AssetClass
 from alpaca.trading.models import Order
 
 # custom libraries
-from src.finance.crypto import CryptoTrader
+from crypto import CryptoTrader
 
 
 # ==================================================
@@ -46,7 +44,6 @@ def main():
     print("STARTING TRADING BOT...", flush=True)
 
     # ----- metadata -----
-
     minimal_transaction = 10.0  # USD
 
     lag_secs = 10  # seconds
@@ -54,11 +51,9 @@ def main():
     elapsed_hr = 0
 
     # ----- configure trading client -----
-
     ct = CryptoTrader(paper=True)
 
     # ----- active trading block -----
-
     try:
         while True:
 
@@ -74,7 +69,6 @@ def main():
             sell_signal = not buy_signal
 
             # ----- trading execution -----
-
             if buy_signal:
                 order = ct.buy_market_order(symbol=symbol, notional=minimal_transaction)
 
@@ -89,7 +83,6 @@ def main():
                 print("Holding...", flush=True)
 
             # ----- timing -----
-
             time.sleep(lag_secs)  # avoid excessive CPU usage
             current_hr = datetime.datetime.now()
 

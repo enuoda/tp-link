@@ -118,3 +118,17 @@ USD_PAIRS = [
     "XTZ/USD",
     "YFI/USD",
 ]
+
+# ===== module exports =====
+
+__all__ = [
+    # Constants
+    "NOW",
+    "PAST_N_YEARS",
+    "TIME_FRAMES",
+    "CRYPTO_TICKERS",
+    "BTC_PAIRS",
+    "USDT_PAIRS",
+    "USDC_PAIRS",
+    "USD_PAIRS",
+]
