@@ -532,7 +532,8 @@ class CCXTFuturesTrader:
         try:
             positions = self.exchange.fetch_positions([symbol])
             
-            for pos in positions:
+            for p in positions:
+                pos = p.get("info", {})                
                 contracts = float(pos.get('contracts', 0))
                 if contracts != 0:
                     return FuturesPosition(
@@ -566,7 +567,8 @@ class CCXTFuturesTrader:
             positions = self.exchange.fetch_positions()
             result = []
             
-            for pos in positions:
+            for p in positions:
+                pos = p.get("info", {})
                 contracts = float(pos.get('contracts', 0))
                 if contracts != 0:
                     result.append(FuturesPosition(

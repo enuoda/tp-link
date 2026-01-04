@@ -228,8 +228,7 @@ class TradingPartner:
     def _get_available_buying_power(self) -> float:
         """
         Get available buying power from the trading account.
-        
-        Refreshes account data and returns the current buying power (USDT balance).
+        Refreshes account data and returns the current buying power.
         
         Returns:
             float: Available buying power in USDT, or 0.0 on error
@@ -239,7 +238,7 @@ class TradingPartner:
             >>> print(f"Available: ${bp:.2f}")
         """
         try:
-            return self.crypto_trader.get_available_balance("USDT")
+            return self.crypto_trader.get_available_balance()
 
         except Exception as e:
             logger.warning(f"Could not get buying power: {e}")
