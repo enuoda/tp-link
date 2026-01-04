@@ -69,10 +69,10 @@ class RollingCointegrationBuffer:
         """
         Callback handler for incoming bar data from streaming.
         
-        Designed to be registered with CryptoTrader.register_bar_callback().
+        Designed to be registered with CCXTFuturesTrader streaming callbacks.
         
         Args:
-            bar_data: Bar object from Alpaca streaming (has symbol, timestamp, open, high, low, close, volume)
+            bar_data: Bar data dict from CCXT streaming (has symbol, timestamp, open, high, low, close, volume)
         """
         try:
             symbol = bar_data.symbol
@@ -359,29 +359,29 @@ class RollingCointegrationBuffer:
             return df
 
 
-def create_buffer_from_trader(
-    trader,
-    symbols: List[str],
-    lookback_bars: int = 500,
-) -> RollingCointegrationBuffer:
-    """
-    Factory function to create a buffer and wire it to a CryptoTrader.
+# def create_buffer_from_trader(
+#     trader,
+#     symbols: List[str],
+#     lookback_bars: int = 500,
+# ) -> RollingCointegrationBuffer:
+#     """
+#     Factory function to create a buffer and wire it to a CryptoTrader.
     
-    Args:
-        trader: CryptoTrader instance
-        symbols: Symbols to track
-        lookback_bars: Buffer size
+#     Args:
+#         trader: CryptoTrader instance
+#         symbols: Symbols to track
+#         lookback_bars: Buffer size
     
-    Returns:
-        Configured RollingCointegrationBuffer
-    """
-    buffer = RollingCointegrationBuffer(
-        symbols=symbols,
-        lookback_bars=lookback_bars,
-    )
+#     Returns:
+#         Configured RollingCointegrationBuffer
+#     """
+#     buffer = RollingCointegrationBuffer(
+#         symbols=symbols,
+#         lookback_bars=lookback_bars,
+#     )
     
-    # Register the buffer's callback with the trader
-    trader.register_bar_callback(buffer.on_bar)
+#     # Register the buffer's callback with the trader
+#     trader.register_bar_callback(buffer.on_bar)
     
-    return buffer
+#     return buffer
 

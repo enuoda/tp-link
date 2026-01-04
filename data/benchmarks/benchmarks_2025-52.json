@@ -1,6 +1,6 @@
 {
   "version": "1.1",
-  "computed_at_utc": "2025-12-26T18:05:39.918885+00:00",
+  "computed_at_utc": "2025-12-28T19:28:39.245494+00:00",
   "universe": [
     "AAVE/USD",
     "AVAX/USD",
@@ -23,8 +23,8 @@
     "XTZ/USD",
     "YFI/USD"
   ],
-  "lookback_days": 90,
-  "p_threshold": 0.1,
+  "lookback_days": 15,
+  "p_threshold": 0.15,
   "cointegration_groups": [
     {
       "id": "USDTUSD-YFIUSD",
@@ -37,19 +37,19 @@
       "vectors": [
         {
           "weights": {
-            "USDT/USD": -24322.280851734,
+            "USDT/USD": -4108.76186876228,
             "YFI/USD": 1.0
           },
-          "spread_mean": -19848.82568140929,
-          "spread_std": 682.10030874972,
-          "half_life": 91.1859322698576,
+          "spread_mean": -750.9020020888468,
+          "spread_std": 94.45088013141691,
+          "half_life": 11.11831081106111,
           "test_stats": {
-            "t_stat": -33.216428998970166
+            "t_stat": -11.385626877184656
           },
-          "p_value": 0.0
+          "p_value": 1.0002100994248729e-19
         }
       ],
-      "selection_score": 1.0123115559466151,
+      "selection_score": 1.09299634453289,
       "zscore_thresholds": {
         "entry": 2.0,
         "exit": 0.5
@@ -57,39 +57,9 @@
       "notes": ""
     },
     {
-      "id": "USDCUSD-YFIUSD",
+      "id": "USDTUSD-XTZUSD",
       "assets": [
-        "USDC/USD",
-        "YFI/USD"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "USDC/USD": -155696.91044171376,
-            "YFI/USD": 1.0
-          },
-          "spread_mean": -151267.90828738207,
-          "spread_std": 672.034532938316,
-          "half_life": 262.45554324259155,
-          "test_stats": {
-            "t_stat": -5.847953673499513
-          },
-          "p_value": 3.4300739872890425e-06
-        }
-      ],
-      "selection_score": 1.0052780845988125,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "USDCUSD-XTZUSD",
-      "assets": [
-        "USDC/USD",
+        "USDT/USD",
         "XTZ/USD"
       ],
       "method": "EngleGranger",
@@ -97,19 +67,19 @@
       "vectors": [
         {
           "weights": {
-            "USDC/USD": -20.921853024810442,
+            "USDT/USD": -0.3888949022611056,
             "XTZ/USD": 1.0
           },
-          "spread_mean": -20.360589374193165,
-          "spread_std": 0.0797358811473603,
-          "half_life": 168.80296608073138,
+          "spread_mean": 0.06758000358144449,
+          "spread_std": 0.019831713176165795,
+          "half_life": 21.454822157290746,
           "test_stats": {
-            "t_stat": -5.8475554938555865
+            "t_stat": -11.367355641000461
           },
-          "p_value": 3.436732306440221e-06
+          "p_value": 1.1045483725055892e-19
         }
       ],
-      "selection_score": 1.9320381625644532,
+      "selection_score": 2.0250877997693264,
       "zscore_thresholds": {
         "entry": 2.0,
         "exit": 0.5
@@ -117,9 +87,39 @@
       "notes": ""
     },
     {
-      "id": "USDCUSD-USDTUSD",
+      "id": "BTCUSD-YFIUSD",
       "assets": [
-        "USDC/USD",
+        "BTC/USD",
+        "YFI/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -0.07180588821369009,
+            "YFI/USD": 1.0
+          },
+          "spread_mean": -2951.1630696368748,
+          "spread_std": 64.07824377664161,
+          "half_life": 12.189147169537943,
+          "test_stats": {
+            "t_stat": -5.0462355233277
+          },
+          "p_value": 0.00013525152537364451
+        }
+      ],
+      "selection_score": 1.091050780574941,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BATUSD-USDTUSD",
+      "assets": [
+        "BAT/USD",
         "USDT/USD"
       ],
       "method": "EngleGranger",
@@ -127,19 +127,19 @@
       "vectors": [
         {
           "weights": {
-            "USDC/USD": -0.8400292062766079,
+            "BAT/USD": -0.014419767211848565,
             "USDT/USD": 1.0
           },
-          "spread_mean": 0.15992712206233528,
-          "spread_std": 0.0023459282189417694,
-          "half_life": 0.32782828227989425,
+          "spread_mean": 0.9964291510841823,
+          "spread_std": 0.0015698223249391503,
+          "half_life": 0.2292623990729656,
           "test_stats": {
-            "t_stat": -4.812584714791362
+            "t_stat": -4.670387886100035
           },
-          "p_value": 0.00035857391035599073
+          "p_value": 0.0006339786127251618
         }
       ],
-      "selection_score": 2.7504104177628212,
+      "selection_score": 2.8112946232630733,
       "zscore_thresholds": {
         "entry": 2.0,
         "exit": 0.5
@@ -147,29 +147,59 @@
       "notes": ""
     },
     {
-      "id": "AVAXUSD-CRVUSD",
+      "id": "ETHUSD-YFIUSD",
       "assets": [
-        "AVAX/USD",
-        "CRV/USD"
+        "ETH/USD",
+        "YFI/USD"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "AVAX/USD": -0.020943501589115426,
-            "CRV/USD": 1.0
+            "ETH/USD": -1.27836500021447,
+            "YFI/USD": 1.0
           },
-          "spread_mean": 0.11042853518735075,
-          "spread_std": 0.021388535187862493,
-          "half_life": 32.108904012314895,
+          "spread_mean": -434.4714843161351,
+          "spread_std": 44.07666272714595,
+          "half_life": 9.308672512579125,
           "test_stats": {
-            "t_stat": -4.6444446148750655
+            "t_stat": -4.151671542780298
           },
-          "p_value": 0.0007020520058436792
+          "p_value": 0.004312759914679743
         }
       ],
-      "selection_score": 2.008560658095886,
+      "selection_score": 1.1148773692208747,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-USDTUSD",
+      "assets": [
+        "BTC/USD",
+        "USDT/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": 3.091512958206913e-08,
+            "USDT/USD": 1.0
+          },
+          "spread_mean": 1.0023291332066464,
+          "spread_std": 0.0015840811894168854,
+          "half_life": 0.2510951739674948,
+          "test_stats": {
+            "t_stat": -4.136416715759281
+          },
+          "p_value": 0.004544590189433358
+        }
+      ],
+      "selection_score": 2.793173536184818,
       "zscore_thresholds": {
         "entry": 2.0,
         "exit": 0.5
@@ -187,19 +217,19 @@
       "vectors": [
         {
           "weights": {
-            "LTC/USD": -0.005962269904300421,
+            "LTC/USD": -0.01030510067417868,
             "XTZ/USD": 1.0
           },
-          "spread_mean": 0.004908240191251055,
-          "spread_std": 0.027847826830460717,
-          "half_life": 35.57213382215162,
+          "spread_mean": -0.34261723964923285,
+          "spread_std": 0.01099983841906431,
+          "half_life": 13.34335149022289,
           "test_stats": {
-            "t_stat": -4.432306375848144
+            "t_stat": -4.1208001220997925
           },
-          "p_value": 0.0015787558212033875
+          "p_value": 0.00479364792819834
         }
       ],
-      "selection_score": 1.9986711305935254,
+      "selection_score": 2.0540449062188295,
       "zscore_thresholds": {
         "entry": 2.0,
         "exit": 0.5
@@ -207,29 +237,29 @@
       "notes": ""
     },
     {
-      "id": "DOTUSD-LTCUSD",
+      "id": "BATUSD-USDCUSD",
       "assets": [
-        "DOT/USD",
-        "LTC/USD"
+        "BAT/USD",
+        "USDC/USD"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "DOT/USD": -16.851383796395464,
-            "LTC/USD": 1.0
+            "BAT/USD": -0.004565823590036988,
+            "USDC/USD": 1.0
           },
-          "spread_mean": 46.01805885753212,
-          "spread_std": 3.313072669261896,
-          "half_life": 26.65002500115864,
+          "spread_mean": 0.9988526713347906,
+          "spread_std": 0.00024809382676060693,
+          "half_life": 24.306487845929542,
           "test_stats": {
-            "t_stat": -4.1990880088232805
+            "t_stat": -3.91015883279125
           },
-          "p_value": 0.0036594539773346798
+          "p_value": 0.009603836039960349
         }
       ],
-      "selection_score": 1.2643601481107178,
+      "selection_score": 2.029663690132783,
       "zscore_thresholds": {
         "entry": 2.0,
         "exit": 0.5
@@ -237,29 +267,449 @@
       "notes": ""
     },
     {
-      "id": "GRTUSD-YFIUSD",
+      "id": "BTCUSD-UNIUSD",
+      "assets": [
+        "BTC/USD",
+        "UNI/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -0.00016671464099793997,
+            "UNI/USD": 1.0
+          },
+          "spread_mean": -8.998395471447918,
+          "spread_std": 0.39287179356435525,
+          "half_life": 71.23441392799337,
+          "test_stats": {
+            "t_stat": -3.9036342132862067
+          },
+          "p_value": 0.009805458582123686
+        }
+      ],
+      "selection_score": 1.7219795246295706,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BATUSD-LINKUSD",
+      "assets": [
+        "BAT/USD",
+        "LINK/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BAT/USD": -23.90784142288135,
+            "LINK/USD": 1.0
+          },
+          "spread_mean": 7.279354731236577,
+          "spread_std": 0.1957669577899829,
+          "half_life": 9.486640924928315,
+          "test_stats": {
+            "t_stat": -3.808043262179515
+          },
+          "p_value": 0.013224832984878095
+        }
+      ],
+      "selection_score": 1.9184179396379997,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-USDCUSD",
+      "assets": [
+        "BTC/USD",
+        "USDC/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": 2.074376427194883e-10,
+            "USDC/USD": 1.0
+          },
+          "spread_mean": 0.9998812078373936,
+          "spread_std": 0.0002587649480892315,
+          "half_life": 27.004678788092498,
+          "test_stats": {
+            "t_stat": -3.767101595565628
+          },
+          "p_value": 0.014987305318766693
+        }
+      ],
+      "selection_score": 2.0204623155445085,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "LTCUSD-USDTUSD",
+      "assets": [
+        "LTC/USD",
+        "USDT/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC/USD": -7.105918058680991e-05,
+            "USDT/USD": 1.0
+          },
+          "spread_mean": 0.9941046095480052,
+          "spread_std": 0.001580199242862568,
+          "half_life": 0.24269658362163946,
+          "test_stats": {
+            "t_stat": -3.746002601382049
+          },
+          "p_value": 0.01597401212424094
+        }
+      ],
+      "selection_score": 2.7871499387321603,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BATUSD-UNIUSD",
+      "assets": [
+        "BAT/USD",
+        "UNI/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BAT/USD": 7.211492730026408,
+            "UNI/USD": 1.0
+          },
+          "spread_mean": 7.238543232155289,
+          "spread_std": 0.41644838808995227,
+          "half_life": 71.22770451307467,
+          "test_stats": {
+            "t_stat": -3.6856475633063934
+          },
+          "p_value": 0.019118487410375622
+        }
+      ],
+      "selection_score": 1.7007177468182166,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BATUSD-BCHUSD",
+      "assets": [
+        "BAT/USD",
+        "BCH/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BAT/USD": 210.51768994081647,
+            "BCH/USD": 1.0
+          },
+          "spread_mean": 626.2854307086377,
+          "spread_std": 24.272859899202516,
+          "half_life": 51.470843640649925,
+          "test_stats": {
+            "t_stat": -3.685505916407331
+          },
+          "p_value": 0.019126461516509465
+        }
+      ],
+      "selection_score": 1.039499879357746,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BATUSD-GRTUSD",
+      "assets": [
+        "BAT/USD",
+        "GRT/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BAT/USD": -0.08313969852405133,
+            "GRT/USD": 1.0
+          },
+          "spread_mean": 0.01920572688153586,
+          "spread_std": 0.0006561657520032582,
+          "half_life": 11.001601817106478,
+          "test_stats": {
+            "t_stat": -3.4953639369545377
+          },
+          "p_value": 0.03280858388244105
+        }
+      ],
+      "selection_score": 2.0498578917247983,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-SHIBUSD",
+      "assets": [
+        "BTC/USD",
+        "SHIB/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -1.2053310273146614e-10,
+            "SHIB/USD": 1.0
+          },
+          "spread_mean": -3.1241273835946906e-06,
+          "spread_std": 3.330728461970213e-07,
+          "half_life": 87.9320553627503,
+          "test_stats": {
+            "t_stat": -3.445247574935602
+          },
+          "p_value": 0.03756762379084191
+        }
+      ],
+      "selection_score": 1.9736765825313691,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-CRVUSD",
+      "assets": [
+        "BTC/USD",
+        "CRV/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -6.63494844628561e-06,
+            "CRV/USD": 1.0
+          },
+          "spread_mean": -0.2126490454482446,
+          "spread_std": 0.016543372944594698,
+          "half_life": 102.99051577746589,
+          "test_stats": {
+            "t_stat": -3.4274506828542166
+          },
+          "p_value": 0.03939173343151062
+        }
+      ],
+      "selection_score": 1.9539503844177828,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "LTCUSD-USDCUSD",
+      "assets": [
+        "LTC/USD",
+        "USDC/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC/USD": -9.16095567650866e-06,
+            "USDC/USD": 1.0
+          },
+          "spread_mean": 0.9991526302704614,
+          "spread_std": 0.00025833933058573534,
+          "half_life": 27.112759052177964,
+          "test_stats": {
+            "t_stat": -3.4231457916795835
+          },
+          "p_value": 0.03984394909259332
+        }
+      ],
+      "selection_score": 1.995468815568525,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-XTZUSD",
+      "assets": [
+        "BTC/USD",
+        "XTZ/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -8.024684196515575e-06,
+            "XTZ/USD": 1.0
+          },
+          "spread_mean": -0.24828048525442195,
+          "spread_std": 0.018008004535437164,
+          "half_life": 69.40488405402745,
+          "test_stats": {
+            "t_stat": -3.4227463847233373
+          },
+          "p_value": 0.03988612506749925
+        }
+      ],
+      "selection_score": 1.9566279822147892,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-SUSHIUSD",
+      "assets": [
+        "BTC/USD",
+        "SUSHI/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -7.153146202080221e-06,
+            "SUSHI/USD": 1.0
+          },
+          "spread_mean": -0.333747411205805,
+          "spread_std": 0.007897233433814417,
+          "half_life": 24.97265230122345,
+          "test_stats": {
+            "t_stat": -3.39876723503253
+          },
+          "p_value": 0.042487576998755563
+        }
+      ],
+      "selection_score": 1.9881791034354204,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "GRTUSD-SHIBUSD",
       "assets": [
         "GRT/USD",
-        "YFI/USD"
+        "SHIB/USD"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "GRT/USD": -46482.02695792422,
-            "YFI/USD": 1.0
+            "GRT/USD": -0.00021725952878373533,
+            "SHIB/USD": 1.0
           },
-          "spread_mean": 1703.5552447806308,
-          "spread_std": 143.4331100644871,
-          "half_life": 24.57954990691685,
+          "spread_mean": -7.082442454297848e-07,
+          "spread_std": 1.5162335688941557e-07,
+          "half_life": 26.36117540723304,
           "test_stats": {
-            "t_stat": -3.9809635016307916
+            "t_stat": -3.3703896857011033
           },
-          "p_value": 0.007642971424604388
+          "p_value": 0.04574735496286944
         }
       ],
-      "selection_score": 1.038374378099167,
+      "selection_score": 1.9908006308792523,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-GRTUSD",
+      "assets": [
+        "BTC/USD",
+        "GRT/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -8.039979069932068e-07,
+            "GRT/USD": 1.0
+          },
+          "spread_mean": -0.033005830628758934,
+          "spread_std": 0.0012109383600270853,
+          "half_life": 34.904437995897645,
+          "test_stats": {
+            "t_stat": -3.3575278676483538
+          },
+          "p_value": 0.047291669122533964
+        }
+      ],
+      "selection_score": 1.9793505672611453,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-ETHUSD",
+      "assets": [
+        "BTC/USD",
+        "ETH/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -0.05707472014991641,
+            "ETH/USD": 1.0
+          },
+          "spread_mean": -2048.1255216715927,
+          "spread_std": 34.69395875967759,
+          "half_life": 16.73568725446908,
+          "test_stats": {
+            "t_stat": -3.353502390075225
+          },
+          "p_value": 0.0477837702659407
+        }
+      ],
+      "selection_score": 1.0366156682454783,
       "zscore_thresholds": {
         "entry": 2.0,
         "exit": 0.5
@@ -277,19 +727,19 @@
       "vectors": [
         {
           "weights": {
-            "BAT/USD": 211.74232997154408,
+            "BAT/USD": -76.03851910449553,
             "LTC/USD": 1.0
           },
-          "spread_mean": 135.48747844787127,
-          "spread_std": 9.361676083002603,
-          "half_life": 66.11676164838116,
+          "spread_mean": 60.71651436801628,
+          "spread_std": 1.0607894265486297,
+          "half_life": 9.128787333061538,
           "test_stats": {
-            "t_stat": -3.866793092875471
+            "t_stat": -3.343621784349737
           },
-          "p_value": 0.011016559114934956
+          "p_value": 0.04900958757565751
         }
       ],
-      "selection_score": 1.1003923314828707,
+      "selection_score": 1.534969851284596,
       "zscore_thresholds": {
         "entry": 2.0,
         "exit": 0.5
@@ -297,29 +747,479 @@
       "notes": ""
     },
     {
-      "id": "GRTUSD-SUSHIUSD",
+      "id": "SUSHIUSD-USDTUSD",
       "assets": [
-        "GRT/USD",
-        "SUSHI/USD"
+        "SUSHI/USD",
+        "USDT/USD"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "GRT/USD": -8.872506824319103,
-            "SUSHI/USD": 1.0
+            "SUSHI/USD": -0.02061441290195296,
+            "USDT/USD": 1.0
           },
-          "spread_mean": -0.05027981999223302,
-          "spread_std": 0.018568885830458497,
-          "half_life": 16.654233207788362,
+          "spread_mean": 0.9935436409482481,
+          "spread_std": 0.0015690301420079533,
+          "half_life": 0.2270538058932791,
           "test_stats": {
-            "t_stat": -3.7982226473191947
+            "t_stat": -3.3190233978567263
           },
-          "p_value": 0.013629979695029036
+          "p_value": 0.05217419123509686
         }
       ],
-      "selection_score": 2.024783290384162,
+      "selection_score": 2.7612194243472454,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "AVAXUSD-XTZUSD",
+      "assets": [
+        "AVAX/USD",
+        "XTZ/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "AVAX/USD": -0.04397983510303419,
+            "XTZ/USD": 1.0
+          },
+          "spread_mean": -0.08564244755606473,
+          "spread_std": 0.009728854226526714,
+          "half_life": 14.752115452852566,
+          "test_stats": {
+            "t_stat": -3.2983840877666495
+          },
+          "p_value": 0.05495697009069602
+        }
+      ],
+      "selection_score": 1.9988914510524969,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "LTCUSD-SHIBUSD",
+      "assets": [
+        "LTC/USD",
+        "SHIB/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC/USD": -1.6134926311977218e-07,
+            "SHIB/USD": 1.0
+          },
+          "spread_mean": -5.050065383437587e-06,
+          "spread_std": 2.441644065176038e-07,
+          "half_life": 37.72187290546261,
+          "test_stats": {
+            "t_stat": -3.287539599027301
+          },
+          "p_value": 0.05646696967296609
+        }
+      ],
+      "selection_score": 1.9693579832661807,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-DOTUSD",
+      "assets": [
+        "BTC/USD",
+        "DOT/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -3.501737761528949e-05,
+            "DOT/USD": 1.0
+          },
+          "spread_mean": -1.2496783682487207,
+          "spread_std": 0.07637211193152994,
+          "half_life": 65.08856064916765,
+          "test_stats": {
+            "t_stat": -3.279033981681531
+          },
+          "p_value": 0.05767478481604973
+        }
+      ],
+      "selection_score": 1.8865031653495297,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "GRTUSD-LINKUSD",
+      "assets": [
+        "GRT/USD",
+        "LINK/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "GRT/USD": -275.77603361257917,
+            "LINK/USD": 1.0
+          },
+          "spread_mean": 2.199707560731108,
+          "spread_std": 0.1322409766400331,
+          "half_life": 11.049651298900345,
+          "test_stats": {
+            "t_stat": -3.273004801460904
+          },
+          "p_value": 0.058543585138059906
+        }
+      ],
+      "selection_score": 1.9076505806620445,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "LTCUSD-UNIUSD",
+      "assets": [
+        "LTC/USD",
+        "UNI/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC/USD": -0.018255086544010663,
+            "UNI/USD": 1.0
+          },
+          "spread_mean": 4.227229848330895,
+          "spread_std": 0.43130305691938287,
+          "half_life": 124.61582226247937,
+          "test_stats": {
+            "t_stat": -3.2623146096735662
+          },
+          "p_value": 0.060110107781248534
+        }
+      ],
+      "selection_score": 1.6465147294314941,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BATUSD-CRVUSD",
+      "assets": [
+        "BAT/USD",
+        "CRV/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BAT/USD": -0.39990788720328896,
+            "CRV/USD": 1.0
+          },
+          "spread_mean": 0.2815534201812798,
+          "spread_std": 0.01684587854148983,
+          "half_life": 69.08569499528973,
+          "test_stats": {
+            "t_stat": -3.253665433134652
+          },
+          "p_value": 0.061402212860666806
+        }
+      ],
+      "selection_score": 1.9362992377311812,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "SUSHIUSD-USDCUSD",
+      "assets": [
+        "SUSHI/USD",
+        "USDC/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "SUSHI/USD": -0.0061173885189276245,
+            "USDC/USD": 1.0
+          },
+          "spread_mean": 0.9980617001470866,
+          "spread_std": 0.0002497658088869748,
+          "half_life": 24.736843590813915,
+          "test_stats": {
+            "t_stat": -3.2535680129142763
+          },
+          "p_value": 0.061416893230831875
+        }
+      ],
+      "selection_score": 1.9771882068109048,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "GRTUSD-USDCUSD",
+      "assets": [
+        "GRT/USD",
+        "USDC/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "GRT/USD": -0.052563009872477195,
+            "USDC/USD": 1.0
+          },
+          "spread_mean": 0.9978864759804673,
+          "spread_std": 0.0002466066206122627,
+          "half_life": 23.39999297818552,
+          "test_stats": {
+            "t_stat": -3.2335891670762
+          },
+          "p_value": 0.06448789801800364
+        }
+      ],
+      "selection_score": 1.9762491745128292,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "GRTUSD-USDTUSD",
+      "assets": [
+        "GRT/USD",
+        "USDT/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "GRT/USD": -0.15966771078791614,
+            "USDT/USD": 1.0
+          },
+          "spread_mean": 0.9936144309175853,
+          "spread_std": 0.0015671805000638465,
+          "half_life": 0.2191550779744572,
+          "test_stats": {
+            "t_stat": -3.231356189117533
+          },
+          "p_value": 0.06483866943496903
+        }
+      ],
+      "selection_score": 2.753836798184627,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-DOGEUSD",
+      "assets": [
+        "BTC/USD",
+        "DOGE/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -2.6770973397531893e-06,
+            "DOGE/USD": 1.0
+          },
+          "spread_mean": -0.10595093034146931,
+          "spread_std": 0.0031893580514749404,
+          "half_life": 57.06665572701616,
+          "test_stats": {
+            "t_stat": -3.2300762954730975
+          },
+          "p_value": 0.06504041340831027
+        }
+      ],
+      "selection_score": 1.9490019558362488,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "GRTUSD-LTCUSD",
+      "assets": [
+        "GRT/USD",
+        "LTC/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "GRT/USD": -955.6452234161973,
+            "LTC/USD": 1.0
+          },
+          "spread_mean": 41.607310678267226,
+          "spread_std": 0.7709448592741737,
+          "half_life": 8.921724364199857,
+          "test_stats": {
+            "t_stat": -3.22839497801248
+          },
+          "p_value": 0.06530619721244284
+        }
+      ],
+      "selection_score": 1.6001530543396723,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "AVAXUSD-LTCUSD",
+      "assets": [
+        "AVAX/USD",
+        "LTC/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "AVAX/USD": -3.633899340383287,
+            "LTC/USD": 1.0
+          },
+          "spread_mean": 32.750005612760916,
+          "spread_std": 0.7364702304887224,
+          "half_life": 9.13882757311077,
+          "test_stats": {
+            "t_stat": -3.189060708540654
+          },
+          "p_value": 0.07177634322758217
+        }
+      ],
+      "selection_score": 1.6027352676865267,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "ETHUSD-USDTUSD",
+      "assets": [
+        "ETH/USD",
+        "USDT/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ETH/USD": -2.1805728549687117e-06,
+            "USDT/USD": 1.0
+          },
+          "spread_mean": 0.9931479618116728,
+          "spread_std": 0.0015773622469308116,
+          "half_life": 0.2434764768821813,
+          "test_stats": {
+            "t_stat": -3.1883179602236833
+          },
+          "p_value": 0.07190324759182366
+        }
+      ],
+      "selection_score": 2.7307188322717044,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "GRTUSD-UNIUSD",
+      "assets": [
+        "GRT/USD",
+        "UNI/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "GRT/USD": 58.905829873400734,
+            "UNI/USD": 1.0
+          },
+          "spread_mean": 7.85781623071597,
+          "spread_std": 0.4233266806480887,
+          "half_life": 67.11210743643453,
+          "test_stats": {
+            "t_stat": -3.18682405439569
+          },
+          "p_value": 0.07215903233999948
+        }
+      ],
+      "selection_score": 1.6451020415108124,
+      "zscore_thresholds": {
+        "entry": 2.0,
+        "exit": 0.5
+      },
+      "notes": ""
+    },
+    {
+      "id": "BTCUSD-LINKUSD",
+      "assets": [
+        "BTC/USD",
+        "LINK/USD"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC/USD": -0.00025973371321419886,
+            "LINK/USD": 1.0
+          },
+          "spread_mean": -10.240649956820599,
+          "spread_std": 0.32796473974843604,
+          "half_life": 48.074095324055584,
+          "test_stats": {
+            "t_stat": -3.1714860623656707
+          },
+          "p_value": 0.07482712188831085
+        }
+      ],
+      "selection_score": 1.6985822700218935,
       "zscore_thresholds": {
         "entry": 2.0,
         "exit": 0.5

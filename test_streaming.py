@@ -22,12 +22,10 @@ def test_streaming():
     print("=" * 60)
     
     # Check environment variables
-    # api_key = os.getenv("ALPACA_API_KEY")
-    # secret_key = os.getenv("ALPACA_SECRET_KEY")
+    api_key = os.getenv("ALPACA_API_KEY")
+    secret_key = os.getenv("ALPACA_SECRET_KEY")
 
-    # ALPACA_API_BASE_URL="https://paper-api.alpaca.markets"
-    api_key="PKHXAJ5NMHY0MSPBVKHT"
-    secret_key="foneXvX8oezpUkU44BBCI5P2F8AgL8ewbCTt7QEf"
+    ALPACA_API_BASE_URL="https://paper-api.alpaca.markets"
     
     if not api_key or not secret_key:
         print("❌ Missing environment variables!")

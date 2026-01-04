@@ -10,6 +10,12 @@ It provides multiple modes of operation:
 3. Cointegration-based spread trading
 4. Benchmark computation
 
+Uses CCXT for exchange-agnostic data streaming and order execution,
+enabling native long/short positions for spread trading on futures exchanges.
+
+The exchange is configurable via the EXCHANGE_NAME environment variable.
+See EXCHANGE_CONFIG.md for detailed configuration instructions.
+
 Usage:
     # Run indefinitely until keyboard interrupt
     python main.py --mode trade-indefinite
@@ -33,13 +39,16 @@ import sys
 import time
 import traceback
 
+from src.finance.rolling_buffer import RollingCointegrationBuffer
+from src.finance.spread_engine import SpreadSignalEngine
+
 # ===== add src directory to path for imports =====
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 # ===== import with error handling =====
 try:
-    from src.finance.live_trading_example import TradingPartner
     from src.finance.benchmarks import load_benchmarks, is_stale
+    from src.finance.trading_bot import TradingPartner
     from src.trading_strategy.compute_benchmarks import (
         compute_benchmarks,
         save_benchmarks,
@@ -48,18 +57,14 @@ try:
 except ImportError as e:
     print(f"❌ Import error: {e}")
     print("\nPlease ensure all required dependencies are installed:")
-    print("pip install alpaca-py numpy pandas matplotlib python-dotenv statsmodels")
-    print("\nAlso ensure you have set your environment variables:")
-    print("export ALPACA_API_KEY='your_key'")
-    print("export ALPACA_SECRET_KEY='your_secret'")
+    print("pip install ccxt numpy pandas python-dotenv statsmodels")
+    print("\nAlso ensure you have set your environment variables.")
+    print("See EXCHANGE_CONFIG.md for configuration instructions.")
     sys.exit(1)
 
 except ValueError as e:
-    print("❌ Missing required environment variables!")
-    print("\nPlease set the following environment variables:")
-    print("export ALPACA_API_KEY='your_api_key'")
-    print("export ALPACA_SECRET_KEY='your_secret_key'")
-    print("export ALPACA_API_BASE_URL='https://paper-api.alpaca.markets'  # For paper trading")
+    print(f"❌ Configuration error: {e}")
+    print("\nSee EXCHANGE_CONFIG.md for configuration instructions.")
     sys.exit(1)
 
 # global flag for graceful shutdown
@@ -83,7 +88,24 @@ logger = logging.getLogger(__name__)
 
 
 def _log_health_status(trader: TradingPartner, session_start: datetime, cycle_count: int) -> None:
-    """Log health status of the trading system."""
+    """
+    Log health status of the trading system to console and log file.
+    
+    Displays uptime, cycle count, streaming health, symbol staleness,
+    spread positions, and account balance.
+    
+    Args:
+        trader: Active TradingPartner instance with open connections
+        session_start: Datetime when trading session began
+        cycle_count: Number of completed trading cycles
+        
+    Returns:
+        None (outputs to logger)
+        
+    Example:
+        >>> _log_health_status(trader, session_start, cycle_count=42)
+        # Outputs health dashboard to console/log
+    """
     logger.info("\n" + "=" * 60)
     logger.info("📊 HEALTH STATUS")
     logger.info("=" * 60)
@@ -118,7 +140,24 @@ def _log_health_status(trader: TradingPartner, session_start: datetime, cycle_co
 
 
 def _log_final_summary(trader: TradingPartner, session_start: datetime, cycle_count: int) -> None:
-    """Log final session summary."""
+    """
+    Log final summary when trading session ends.
+    
+    Called during graceful shutdown to report session duration,
+    total cycles executed, and final account status.
+    
+    Args:
+        trader: TradingPartner instance (may have closed positions)
+        session_start: Datetime when trading session began
+        cycle_count: Total trading cycles completed
+        
+    Returns:
+        None (outputs to logger)
+        
+    Example:
+        >>> _log_final_summary(trader, session_start, cycle_count=150)
+        # Outputs final summary to console/log
+    """
     logger.info("\n" + "=" * 60)
     logger.info("📋 FINAL SESSION SUMMARY")
     logger.info("=" * 60)
@@ -137,12 +176,73 @@ def _log_final_summary(trader: TradingPartner, session_start: datetime, cycle_co
 
 
 # ==================================================
+# SYMBOL FILTERING
+# ==================================================
+
+
+def filter_excluded_symbols(symbols: list, exclude: list = None) -> list:
+    """
+    Remove excluded symbols from a symbol list.
+    
+    Handles both canonical format (e.g., "BTC") and exchange format (e.g., "BTC/USD:USD").
+    Exclusions are matched by base asset (case-insensitive).
+    
+    Args:
+        symbols: List of symbols to filter
+        exclude: List of symbols/bases to exclude (e.g., ["DOGE", "SHIB"])
+        
+    Returns:
+        Filtered list with excluded symbols removed
+        
+    Example:
+        >>> filter_excluded_symbols(["BTC/USD:USD", "DOGE/USD:USD"], ["DOGE"])
+        ['BTC/USD:USD']
+    """
+    if not exclude:
+        return symbols
+    
+    # Normalize exclusions to uppercase base symbols
+    exclude_bases = set()
+    for ex in exclude:
+        # Handle both "DOGE" and "DOGE/USD:USD" formats
+        base = ex.split('/')[0].upper() if '/' in ex else ex.upper()
+        exclude_bases.add(base)
+    
+    filtered = []
+    for sym in symbols:
+        # Extract base from symbol
+        base = sym.split('/')[0].upper() if '/' in sym else sym.upper()
+        if base not in exclude_bases:
+            filtered.append(sym)
+        else:
+            logger.info(f"🚫 Excluding symbol: {sym}")
+    
+    return filtered
+
+
+# ==================================================
 # LIVE TRADING/MONITORING ROUTINES
 # ==================================================
 
 
 def signal_handler(signum, frame):
-    """Handle shutdown signals gracefully."""
+    """
+    Handle OS shutdown signals (SIGINT, SIGTERM) for graceful shutdown.
+    
+    Sets global shutdown_requested flag to True, allowing the main
+    trading loop to exit cleanly and close positions.
+    
+    Args:
+        signum: Signal number received (e.g., 2 for SIGINT)
+        frame: Current stack frame (unused)
+        
+    Returns:
+        None (sets global flag)
+        
+    Example:
+        >>> signal.signal(signal.SIGINT, signal_handler)
+        # Ctrl+C now triggers graceful shutdown
+    """
     global shutdown_requested
     logger.info(f"\n🛑 Received signal {signum}. Initiating graceful shutdown...")
     shutdown_requested = True
@@ -157,18 +257,31 @@ def check_and_refresh_benchmarks(
     p_threshold: float = 0.10,
 ) -> bool:
     """
-    Check if benchmarks are stale and recompute if needed.
+    Check if cointegration benchmarks are stale and recompute if needed.
+    
+    Loads existing benchmarks from data/benchmarks/, checks their age,
+    and recomputes if older than max_age_days. Benchmarks contain
+    cointegration pairs, hedge ratios, and spread statistics needed
+    for live trading signals.
     
     Args:
-        symbols: List of symbols for benchmark computation
-        max_age_days: Maximum age before benchmarks are considered stale
-        days_back: Lookback period for cointegration analysis
-        time_scale: Time scale for bars
-        max_groups: Maximum number of cointegration groups to keep
-        p_threshold: P-value threshold for cointegration test (higher = more pairs)
+        symbols: List of crypto symbols (e.g., ['BTC/USDT:USDT', 'ETH/USDT:USDT'])
+        max_age_days: Recompute if benchmarks older than this (default: 7)
+        days_back: Historical lookback for cointegration analysis (default: 30)
+        time_scale: Bar timeframe - 'min', 'hour', or 'day' (default: 'hour')
+        max_groups: Max cointegration pairs to keep (default: 10)
+        p_threshold: P-value for cointegration test; higher=more pairs (default: 0.10)
         
     Returns:
-        True if benchmarks are fresh (either already fresh or successfully refreshed)
+        True if benchmarks are fresh (existing or newly computed), False on error
+        
+    Example:
+        >>> check_and_refresh_benchmarks(
+        ...     symbols=['BTC/USDT:USDT', 'ETH/USDT:USDT', 'LTC/USDT:USDT'],
+        ...     max_age_days=7,
+        ...     p_threshold=0.15
+        ... )
+        True  # Benchmarks ready for trading
     """
     try:
         benchmarks = load_benchmarks()
@@ -202,6 +315,8 @@ def check_and_refresh_benchmarks(
 def run_indefinitely(
     trader: TradingPartner,
     symbols: list,
+    lookback_bars: int = 500,
+    max_groups: int = 10,
     cycle_seconds: int = 30,
     health_log_minutes: int = 15,
     benchmark_refresh_days: int = 7,
@@ -211,22 +326,50 @@ def run_indefinitely(
     entry_staleness: float = 30.0,
     exit_staleness: float = 300.0,
     emergency_staleness: float = 900.0,
+    recalibrate_interval: int = 10,
+    recalibrate_min_obs: int = 50,
+    exclude_symbols: list = None,
 ) -> None:
     """
-    Run the trading bot indefinitely until interrupted.
+    Run the live trading bot indefinitely until interrupted (Ctrl+C).
+    
+    Main trading loop that:
+    1. Connects to Binance Futures WebSocket for real-time price streaming
+    2. Monitors cointegrated pairs for entry/exit signals via z-scores
+    3. Executes spread trades when signals trigger (native long/short)
+    4. Periodically recalibrates spread parameters from recent prices
+    5. Handles graceful shutdown, closing positions on exit
+    
+    Uses per-symbol staleness thresholds based on liquidity tiers
+    and heartbeat monitoring to detect zombie connections.
     
     Args:
-        trader: TradingPartner instance
-        symbols: List of symbols to trade (used as fallback if no benchmarks)
-        cycle_seconds: Seconds between trading cycles
-        health_log_minutes: Minutes between health status logs
-        benchmark_refresh_days: Days after which to refresh benchmarks
-        max_stream_symbols: Maximum number of symbols to stream (Alpaca API limit)
-        entry_zscore: Z-score threshold for entering positions (default: 2.0)
-        entry_staleness: Max price age (secs) for new entries (default: 30)
-        exit_staleness: Max price age (secs) for exits (default: 300)
-        emergency_staleness: Force exit after this staleness (default: 900)
-        exit_zscore: Z-score threshold for exiting positions (default: 0.5)
+        trader: Initialized TradingPartner with Binance credentials
+        symbols: Fallback symbol list if no benchmarks exist
+        cycle_seconds: Seconds between trading logic execution (default: 30)
+        health_log_minutes: Minutes between health status logs (default: 15)
+        benchmark_refresh_days: Days before benchmarks recomputed (default: 7)
+        max_stream_symbols: Max WebSocket subscriptions (default: 10)
+        entry_zscore: Z-score to trigger entry (default: 2.0)
+        exit_zscore: Z-score to trigger exit (default: 0.5)
+        entry_staleness: Max data age (sec) for entries (default: 30)
+        exit_staleness: Max data age (sec) for exits (default: 300)
+        emergency_staleness: Force exit if data older than (default: 900)
+        recalibrate_interval: Minutes between spread recalibrations (default: 10)
+        recalibrate_min_obs: Min observations before recalibrating (default: 50)
+        
+    Returns:
+        None (runs until interrupted)
+        
+    Example:
+        >>> trader = TradingPartner(paper=True)
+        >>> run_indefinitely(
+        ...     trader=trader,
+        ...     symbols=['BTC/USDT:USDT', 'ETH/USDT:USDT'],
+        ...     cycle_seconds=30,
+        ...     entry_zscore=2.0
+        ... )
+        # Runs until Ctrl+C, then closes positions gracefully
     """
     global shutdown_requested
     
@@ -238,16 +381,22 @@ def run_indefinitely(
     logger.info(f"Benchmark refresh: {benchmark_refresh_days} days")
     logger.info(f"Max streaming symbols: {max_stream_symbols}")
     logger.info(f"Z-score thresholds: entry={entry_zscore}, exit={exit_zscore}")
+
+    if recalibrate_interval > 0:
+        logger.info(f"Rolling recalibration: every {recalibrate_interval} min (min {recalibrate_min_obs} obs)")
+
+    else:
+        logger.info("Rolling recalibration: DISABLED")
+
     logger.info("Press Ctrl+C to stop gracefully")
     logger.info("=" * 60)
     
-    # Register signal handlers
+    # ----- register signal handlers -----
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
     # ===== SMART SYMBOL SELECTION =====
     # Only stream symbols that are actually needed for cointegration pairs
-    # This prevents "symbol limit exceeded" errors from Alpaca API
     
     all_symbols = []
     
@@ -256,48 +405,67 @@ def run_indefinitely(
         all_symbols = trader.spread_engine.get_required_symbols()
         logger.info(f"📊 Using {len(all_symbols)} symbols from cointegration pairs: {all_symbols}")
     
-    # Option 2: Load benchmarks directly and extract symbols
+    # Option 2: Load benchmarks directly and extract symbols (with proper conversion)
     if not all_symbols:
         try:
+            from src.finance.benchmarks import get_assets
+            
             benchmarks = load_benchmarks()
             groups = benchmarks.get('cointegration_groups', [])
-            # Extract unique symbols from cointegration groups
+
             symbol_set = set()
             for group in groups:
-                symbol_set.update(group.get('assets', []))
+                # Use get_assets() to properly convert canonical symbols to exchange format
+                converted_assets = get_assets(group, convert_to_exchange=True)
+                symbol_set.update(converted_assets)
             all_symbols = list(symbol_set)
             logger.info(f"📊 Loaded {len(all_symbols)} symbols from {len(groups)} cointegration groups")
+
         except Exception as e:
             logger.warning(f"Could not load benchmarks: {e}")
     
     # Option 3: Fallback to a minimal set
     if not all_symbols:
-        all_symbols = symbols[:max_stream_symbols] if symbols else ["BTC/USD", "ETH/USD"]
+        all_symbols = symbols[:max_stream_symbols] if symbols else ["BTC/USDT:USDT", "ETH/USDT:USDT"]
         logger.warning(f"⚠️ No cointegration pairs found - using fallback symbols: {all_symbols}")
     
-    # Apply safety limit to prevent exceeding Alpaca's WebSocket limits
+    # Apply safety limit
     if len(all_symbols) > max_stream_symbols:
         logger.warning(f"⚠️ Limiting streams from {len(all_symbols)} to {max_stream_symbols} symbols")
         all_symbols = all_symbols[:max_stream_symbols]
+    
+    # Apply exclusion filter
+    if exclude_symbols:
+        all_symbols = filter_excluded_symbols(all_symbols, exclude_symbols)
     
     logger.info(f"📡 Will stream {len(all_symbols)} symbols: {all_symbols}")
     
     # Initialize spread engine with custom z-score thresholds if not already set
     if trader.spread_engine is None and trader.benchmarks is not None:
-        from src.finance.spread_engine import SpreadSignalEngine
+        # Get available symbols from exchange for proper filtering
+        available_perpetuals = trader.crypto_trader.get_tradeable_symbols()
+        
         trader.spread_engine = SpreadSignalEngine(
             benchmarks=trader.benchmarks,
             entry_zscore=entry_zscore,
             exit_zscore=exit_zscore,
-            max_groups=10,
+            max_groups=max_groups,
             entry_max_staleness_secs=entry_staleness,
             exit_max_staleness_secs=exit_staleness,
             emergency_exit_staleness_secs=emergency_staleness,
+            available_symbols=available_perpetuals if available_perpetuals else None,
         )
+
         logger.info(f"📊 Spread engine initialized: entry z={entry_zscore}, exit z={exit_zscore}")
         logger.info(f"📊 Staleness thresholds: entry={entry_staleness}s, exit={exit_staleness}s, emergency={emergency_staleness}s")
+        
+        # Update all_symbols from properly filtered spread engine
+        filtered_symbols = trader.spread_engine.get_required_symbols()
+        if filtered_symbols:
+            all_symbols = filtered_symbols
+            logger.info(f"📊 Using {len(all_symbols)} filtered symbols from spread engine")
+
     elif trader.spread_engine is not None:
-        # Update existing spread engine thresholds
         trader.spread_engine.entry_zscore = entry_zscore
         trader.spread_engine.exit_zscore = exit_zscore
         trader.spread_engine.entry_max_staleness_secs = entry_staleness
@@ -306,25 +474,18 @@ def run_indefinitely(
         logger.info(f"📊 Spread engine thresholds updated: entry z={entry_zscore}, exit z={exit_zscore}")
     
     # Initialize rolling buffer
-    from src.finance.rolling_buffer import RollingCointegrationBuffer
     trader.rolling_buffer = RollingCointegrationBuffer(
         symbols=all_symbols,
-        lookback_bars=500,
+        lookback_bars=lookback_bars,
     )
     
-    # Start streaming
+    # ===== start streaming =====
     try:
         logger.info("📡 Starting real-time streaming...")
-        # NOTE: Using only "quotes" to minimize WebSocket load and avoid symbol limit errors.
-        # "quotes" provides bid/ask prices which is sufficient for spread trading.
-        # To add more data types, append to this list: ["quotes", "trades", "bars"]
+        # Using "tickers" for Binance Futures streaming
         trader.crypto_trader.start_real_time_streaming(
-            all_symbols, ["quotes"]
+            all_symbols, ["tickers"]
         )
-        
-        # Register rolling buffer callback (for future use when bars are enabled)
-        # NOTE: Bar streaming is currently disabled. Uncomment when bars are added back.
-        # trader.crypto_trader.register_bar_callback(trader.rolling_buffer.on_bar)
         
         # Wait for initial data
         logger.info("⏳ Waiting for initial streaming data...")
@@ -346,6 +507,7 @@ def run_indefinitely(
     session_start = datetime.now()
     last_health_log = datetime.now()
     last_benchmark_check = datetime.now()
+    last_recalibration = datetime.now()
     
     try:
         while not shutdown_requested:
@@ -359,8 +521,20 @@ def run_indefinitely(
                 # ----- monitor, execute, and update positions -----
                 # Show debug info for first 3 cycles to help diagnose streaming issues
                 trader._monitor_market_data(all_symbols, show_debug=(cycle_count <= 3))
-                trader._execute_trading_logic(all_symbols)
+                trader._execute_trading_logic(all_symbols, staleness_threshold=entry_staleness)
                 trader._update_spread_positions()
+                
+                # ----- record prices for rolling recalibration -----
+                if trader.spread_engine is not None and recalibrate_interval > 0:
+                    price_map = {}
+                    for sym in all_symbols:
+                        p = trader.crypto_trader.get_latest_price(sym)
+
+                        if p is not None:
+                            price_map[sym] = float(p)
+
+                    if price_map:
+                        trader.spread_engine.record_prices(price_map)
                 
                 # ----- logging -----
                 if trader._spread_positions:
@@ -385,6 +559,29 @@ def run_indefinitely(
                 except:
                     pass
                 last_benchmark_check = datetime.now()
+            
+            # ----- rolling recalibration -----
+            if recalibrate_interval > 0 and trader.spread_engine is not None:
+                if (datetime.now() - last_recalibration).total_seconds() >= recalibrate_interval * 60:
+                    logger.info("📊 Running rolling recalibration...")
+                    results = trader.spread_engine.recalibrate_from_history(
+                        min_observations=recalibrate_min_obs
+                    )
+                    
+                    # Log recalibration results
+                    successful = sum(1 for r in results.values() if r.get('success'))
+                    total = len(results)
+                    logger.info(f"📊 Recalibration complete: {successful}/{total} groups updated")
+                    
+                    for gid, r in results.items():
+                        if r.get('success'):
+                            mean_shift = r.get('mean_shift', 0)
+                            std_change = r.get('std_change_pct', 0)
+                            logger.info(f"  {gid}: mean shift={mean_shift:+.4f}, std change={std_change:+.1f}%")
+                        else:
+                            logger.debug(f"  {gid}: {r.get('reason', 'Failed')}")
+                    
+                    last_recalibration = datetime.now()
             
             # ----- sleep until next cycle -----
             elapsed = (datetime.now() - cycle_start).total_seconds()
@@ -414,32 +611,50 @@ def run_indefinitely(
 
 
 # ==================================================
-# PRIMIARY SUBROUTINE
+# PRIMARY SUBROUTINE
 # ==================================================
 
 
 def main() -> int:
     """
-    Main application entry point with command-line interface
+    Main CLI entry point for the crypto trading application.
     
+    Supports multiple modes:
+    - trade-indefinite: Run live trading until interrupted (recommended)
+    - trade: Run live trading for a fixed duration
+    - monitor: Stream prices without trading
+    - compute-benchmarks: Compute cointegration pairs
+    - account: Display account info
+    
+    Uses Binance Futures via CCXT for both streaming and trading.
+    
+    Args:
+        None (uses command-line arguments via argparse)
+        
     Returns:
-        Exit code (0 for success, 1 for error)
+        int: Exit code (0=success, 1=error)
+        
+    Example:
+        # From command line:
+        $ python main.py --mode monitor --duration 10
+        $ python main.py --mode compute-benchmarks --p-threshold 0.15
+        $ python main.py --mode trade-indefinite --entry-zscore 2.0 --exit-zscore 0.5
     """
     global crypto_universe
     
     parser = argparse.ArgumentParser(
-        description='Crypto Trading Application with Cointegration Analysis',
+        description='Crypto Trading Application with Cointegration Analysis (CCXT)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
             Examples:
                 # Run trading indefinitely (uses only cointegration pair symbols)
                 python main.py --mode trade-indefinite
                 
-                # Limit streaming to 5 symbols (if hitting Alpaca limits)
+                # Limit streaming to 5 symbols
                 python main.py --mode trade-indefinite --max-stream-symbols 5
                 
                 # Run trading for 60 minutes
-                python main.py --mode trade --duration 60
+                python main.py --mode trade --max-stream-symbols 5 --duration 60
                 
                 # Monitor data only
                 python main.py --mode monitor --duration 10
@@ -463,10 +678,10 @@ def main() -> int:
         help='Application mode'
     )
     parser.add_argument(
-        '--symbols', 
-        nargs='+', 
-        default=None,
-        help='Crypto symbols to trade/monitor (default: all supported)'
+        '--cycle-interval', 
+        type=int, 
+        default=30,
+        help='Seconds between trading cycles (default: 30)'
     )
     parser.add_argument(
         '--duration', 
@@ -475,21 +690,33 @@ def main() -> int:
         help='Duration in minutes (for timed modes)'
     )
     parser.add_argument(
-        '--live', 
-        action='store_true',
-        help='Use live trading (default: paper trading)'
-    )
-    parser.add_argument(
-        '--cycle-interval', 
-        type=int, 
-        default=30,
-        help='Seconds between trading cycles (default: 30)'
-    )
-    parser.add_argument(
         '--health-interval', 
         type=int, 
         default=15,
         help='Minutes between health status logs (default: 15)'
+    )
+    parser.add_argument(
+        '--live', 
+        action='store_true',
+        help='Use live trading (default: testnet/paper trading)'
+    )
+    parser.add_argument(
+        '--lookback-bars',
+        type=int,
+        default=500,
+        help='Lookback bars for historical data (default: 500)'
+    )
+    parser.add_argument(
+        '--symbols', 
+        nargs='+', 
+        default=None,
+        help='Crypto symbols to trade/monitor (default: all supported)'
+    )
+    parser.add_argument(
+        '--exclude-symbols',
+        nargs='+',
+        default=None,
+        help='Symbols to exclude from trading/streaming (e.g., --exclude-symbols DOGE SHIB)'
     )
     
     # ---- benchmarking computation options -----
@@ -529,10 +756,8 @@ def main() -> int:
     parser.add_argument(
         '--max-stream-symbols',
         type=int,
-        default=10,
-        help='Maximum symbols to stream simultaneously (default: 10). '
-             'Alpaca API has limits on concurrent WebSocket subscriptions. '
-             'Reduce this if you get "symbol limit exceeded" errors.'
+        default=40,
+        help='Maximum symbols to stream simultaneously (default: 40).'
     )
     parser.add_argument(
         '--entry-zscore',
@@ -572,6 +797,22 @@ def main() -> int:
              'Forces position close if data becomes critically stale.'
     )
     
+    # ---- rolling recalibration options -----
+    parser.add_argument(
+        '--recalibrate-interval',
+        type=int,
+        default=10,
+        help='Minutes between spread parameter recalibrations (default: 10). '
+             'Set to 0 to disable rolling recalibration.'
+    )
+    parser.add_argument(
+        '--recalibrate-min-obs',
+        type=int,
+        default=50,
+        help='Minimum price observations required before recalibration (default: 50). '
+             'Lower values recalibrate sooner but may be less stable.'
+    )
+    
     args = parser.parse_args()
     symbols = args.symbols if args.symbols else crypto_universe
     
@@ -581,7 +822,7 @@ def main() -> int:
         logger.warning("⚠️  LIVE TRADING MODE - Real money at risk!")
         confirm = input("Are you sure you want to trade with real money? (yes/no): ")
         if confirm.lower() != 'yes':
-            logger.info("Switching to paper trading mode")
+            logger.info("Switching to testnet (paper trading) mode")
             paper_trading = True
     
     # ===== mode determination =====
@@ -593,14 +834,17 @@ def main() -> int:
     
     # ----- recompute cointegration benchmarks -----
     elif args.mode == 'compute-benchmarks':
+        # Apply exclusion filter to symbols
+        filtered_symbols = filter_excluded_symbols(symbols, args.exclude_symbols)
+        
         logger.info("🧮 Computing pairwise cointegration benchmarks")
-        logger.info(f"Symbols: {symbols}")
+        logger.info(f"Symbols: {filtered_symbols}")
         logger.info(f"Lookback: {args.days} days, time scale: {args.time_scale}, max-groups: {args.max_groups}")
         logger.info(f"P-value threshold: {args.p_threshold} (higher = more pairs found)")
         
         try:
             payload = compute_benchmarks(
-                symbols=symbols,
+                symbols=filtered_symbols,
                 days_back=args.days,
                 time_scale=args.time_scale,
                 max_groups=args.max_groups,
@@ -617,14 +861,16 @@ def main() -> int:
     
     # ----- monitor prices without trading -----
     elif args.mode == 'monitor':
+        # Apply exclusion filter to symbols
+        filtered_symbols = filter_excluded_symbols(symbols, args.exclude_symbols)
+        
         trader = TradingPartner(paper=paper_trading)
         logger.info("📡 Starting monitoring mode...")
-        success = trader.monitor_data_only(symbols[:10], args.duration)
+        success = trader.monitor_data_only(filtered_symbols, args.duration)
         return 0 if success else 1
     
     # ----- live trading for a specified duration -----
-    elif args.mode == 'trade':
-        # Check/refresh benchmarks before trading
+    elif args.mode == "trade":
         check_and_refresh_benchmarks(
             symbols=symbols,
             max_age_days=args.benchmark_refresh_days,
@@ -634,20 +880,26 @@ def main() -> int:
             p_threshold=args.p_threshold,
         )
         
+        # Apply exclusion filter to symbols
+        filtered_symbols = filter_excluded_symbols(symbols, args.exclude_symbols)
+        
         trader = TradingPartner(paper=paper_trading)
         logger.info("🤖 Starting timed trading mode...")
+
         success = trader.start_streaming_bot(
-            symbols=symbols, 
+            symbols=filtered_symbols, 
+            lookback_bars=args.lookback_bars,
+            cycle_interval=args.cycle_interval,
             duration_minutes=args.duration,
             max_stream_symbols=args.max_stream_symbols,
             entry_zscore=args.entry_zscore,
             exit_zscore=args.exit_zscore,
         )
+        
         return 0 if success else 1
     
     # ----- indefinite trading (runs until interrupted) -----
-    elif args.mode == 'trade-indefinite':
-        # check/refresh benchmarks before trading
+    elif args.mode == "trade-indefinite":
         check_and_refresh_benchmarks(
             symbols=symbols,
             max_age_days=args.benchmark_refresh_days,
@@ -659,9 +911,12 @@ def main() -> int:
         
         trader = TradingPartner(paper=paper_trading)
         logger.info("🤖 Starting indefinite trading mode...")
+
         run_indefinitely(
             trader=trader,
             symbols=symbols,
+            lookback_bars=args.lookback_bars,
+            max_groups=args.max_groups,
             cycle_seconds=args.cycle_interval,
             health_log_minutes=args.health_interval,
             benchmark_refresh_days=args.benchmark_refresh_days,
@@ -671,34 +926,23 @@ def main() -> int:
             entry_staleness=args.entry_staleness,
             exit_staleness=args.exit_staleness,
             emergency_staleness=args.emergency_staleness,
+            recalibrate_interval=args.recalibrate_interval,
+            recalibrate_min_obs=args.recalibrate_min_obs,
+            exclude_symbols=args.exclude_symbols,
         )
+
         return 0
     
     return 0
 
 
 if __name__ == "__main__":
-    crypto_universe = [
-        "AAVE/USD",
-        "AVAX/USD",
-        "BAT/USD",
-        "BCH/USD",
-        "BTC/USD",
-        "CRV/USD",
-        "DOGE/USD",
-        "DOT/USD",
-        "ETH/USD",
-        "GRT/USD",
-        "LINK/USD",
-        "LTC/USD",
-        "MKR/USD",
-        "SHIB/USD",
-        "SUSHI/USD",
-        "UNI/USD",
-        "USDC/USD",
-        "USDT/USD",
-        "XTZ/USD",
-        "YFI/USD",
-    ]
+    
+    # Import symbols from configured exchange (see src/finance/__init__.py)
+    from src.finance import CRYPTO_TICKERS, EXCHANGE_NAME, EXCHANGE_CONFIG
+    
+    crypto_universe = CRYPTO_TICKERS
+    logger.info(f"🔧 Using {EXCHANGE_CONFIG['name']} with {len(crypto_universe)} symbols")
+
     exit_code = main()
     sys.exit(exit_code)
