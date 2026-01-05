@@ -722,7 +722,7 @@ def main() -> int:
     # ---- benchmarking computation options -----
     parser.add_argument(
         '--days', 
-        type=int, 
+        type=float, 
         default=30,
         help='Lookback days for benchmark computation'
     )

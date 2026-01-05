@@ -140,9 +140,9 @@ class TradingPartner:
     def __init__(
         self,
         paper: bool = True,
-        spread_notional: float = 500.0,
+        spread_notional: float = 10_000.0,
         min_spread_notional: float = 10.0,
-        max_spread_positions: int = 3,
+        max_spread_positions: int = 15,
         buying_power_buffer: float = 0.9,
     ) -> None:
         """
@@ -229,17 +229,19 @@ class TradingPartner:
         """
         Get available buying power from the trading account.
         
-        Refreshes account data and returns the current buying power (USDT balance).
+        Refreshes account data and returns the current buying power.
+        Uses the exchange's configured quote currency (USD for Kraken, USDT for Binance).
         
         Returns:
-            float: Available buying power in USDT, or 0.0 on error
+            float: Available buying power, or 0.0 on error
             
         Example:
             >>> bp = self._get_available_buying_power()
             >>> print(f"Available: ${bp:.2f}")
         """
         try:
-            return self.crypto_trader.get_available_balance("USDT")
+            # Let the trader use its exchange-configured quote currency
+            return self.crypto_trader.get_available_balance()
 
         except Exception as e:
             logger.warning(f"Could not get buying power: {e}")
@@ -371,9 +373,11 @@ class TradingPartner:
                 return False
             
             # Calculate quantities and execute orders for each leg
+            # Scale notional by absolute weight to maintain hedge ratio
             orders = []
             quantities: Dict[str, float] = {}
             entry_prices: Dict[str, float] = {}
+            leg_notionals: Dict[str, float] = {}
             
             for asset in assets:
                 if asset not in price_map:
@@ -385,26 +389,39 @@ class TradingPartner:
                 
                 # positive weight = long, negative weight = short
                 is_long = weight > 0
-                qty = actual_notional / price
+                
+                # Scale notional by absolute weight to maintain hedge ratio
+                leg_notional = actual_notional * abs(weight)
+                qty = leg_notional / price
                 
                 entry_prices[asset] = price
                 quantities[asset] = qty if is_long else -qty
+                leg_notionals[asset] = leg_notional
 
                 # ----- execute futures orders -----
                 if is_long:
                     order = self.crypto_trader.open_long(
                         symbol=asset,
-                        notional=actual_notional
+                        notional=leg_notional
                     )
-                    logger.info(f"(LONG) 🟢 LONG {asset}: ${actual_notional:.2f}")
+                    if order is None:
+                        logger.error(f"❌ LONG order failed for {asset}, aborting spread entry")
+                        return False
+                    logger.info(f"(LONG) 🟢 LONG {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
                 else:
                     order = self.crypto_trader.open_short(
                         symbol=asset,
-                        notional=actual_notional
+                        notional=leg_notional
                     )
-                    logger.info(f"(LONG) 🔴 SHORT {asset}: ${actual_notional:.2f}")
+                    if order is None:
+                        logger.error(f"❌ SHORT order failed for {asset}, aborting spread entry")
+                        return False
+                    logger.info(f"(LONG) 🔴 SHORT {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
                 
                 orders.append(order)
+            
+            # Calculate total notional from weighted leg notionals
+            total_notional = sum(leg_notionals.values())
             
             position = SpreadPosition(
                 group_id=group_id,
@@ -414,7 +431,7 @@ class TradingPartner:
                 quantities=quantities,
                 entry_prices=entry_prices,
                 current_prices=price_map.copy(),
-                notional=round(actual_notional * len(assets), 2),
+                notional=round(total_notional, 2),
                 entry_zscore=signal.zscore,
                 current_zscore=signal.zscore,
                 entry_time=datetime.now(),
@@ -468,9 +485,11 @@ class TradingPartner:
                 return False
             
             # Calculate quantities for each leg (opposite of long)
+            # Scale notional by absolute weight to maintain hedge ratio
             orders = []
             quantities: Dict[str, float] = {}
             entry_prices: Dict[str, float] = {}
+            leg_notionals: Dict[str, float] = {}
             
             for asset in assets:
                 if asset not in price_map:
@@ -482,26 +501,39 @@ class TradingPartner:
                 
                 # Opposite of long: positive weight = short, negative weight = long
                 is_short = weight > 0
-                qty = actual_notional / price
+                
+                # Scale notional by absolute weight to maintain hedge ratio
+                leg_notional = actual_notional * abs(weight)
+                qty = leg_notional / price
                 
                 quantities[asset] = -qty if is_short else qty
                 entry_prices[asset] = price
+                leg_notionals[asset] = leg_notional
             
                 # ----- execute futures orders -----
                 if is_short:
                     order = self.crypto_trader.open_short(
                         symbol=asset,
-                        notional=actual_notional
+                        notional=leg_notional
                     )
-                    logger.info(f"(SHORT) 🔴 SHORT {asset}: ${actual_notional:.2f}")
+                    if order is None:
+                        logger.error(f"❌ SHORT order failed for {asset}, aborting spread entry")
+                        return False
+                    logger.info(f"(SHORT) 🔴 SHORT {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
                 else:
                     order = self.crypto_trader.open_long(
                         symbol=asset,
-                        notional=actual_notional
+                        notional=leg_notional
                     )
-                    logger.info(f"(SHORT) 🟢 LONG {asset}: ${actual_notional:.2f}")
+                    if order is None:
+                        logger.error(f"❌ LONG order failed for {asset}, aborting spread entry")
+                        return False
+                    logger.info(f"(SHORT) 🟢 LONG {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
                 
                 orders.append(order)
+            
+            # Calculate total notional from weighted leg notionals
+            total_notional = sum(leg_notionals.values())
             
             position = SpreadPosition(
                 group_id=group_id,
@@ -511,7 +543,7 @@ class TradingPartner:
                 quantities=quantities,
                 entry_prices=entry_prices,
                 current_prices=price_map.copy(),
-                notional=round(actual_notional * len(assets), 2),
+                notional=round(total_notional, 2),
                 entry_zscore=signal.zscore,
                 current_zscore=signal.zscore,
                 entry_time=datetime.now(),

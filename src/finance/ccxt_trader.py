@@ -291,6 +291,7 @@ class CCXTFuturesTrader:
         
         return available
 
+
     def _is_perpetual_contract(self, symbol: str) -> bool:
         """
         Check if a symbol is a perpetual/futures contract.
@@ -340,6 +341,7 @@ class CCXTFuturesTrader:
             return symbol in self.exchange.markets
         return True  # Assume available if markets not loaded
 
+
     def get_canonical_to_exchange_map(self) -> Dict[str, str]:
         """
         Create a mapping from canonical symbols (e.g., "BTC") to exchange symbols.
@@ -367,6 +369,7 @@ class CCXTFuturesTrader:
                     mapping[base] = symbol
         
         return mapping
+
 
     def get_tradeable_symbols(self) -> List[str]:
         """
@@ -532,20 +535,21 @@ class CCXTFuturesTrader:
         try:
             positions = self.exchange.fetch_positions([symbol])
             
-            for pos in positions:
-                contracts = float(pos.get('contracts', 0))
+            for p in positions:
+                # Use CCXT unified fields directly, NOT p["info"]
+                contracts = float(p.get('contracts') or 0)
                 if contracts != 0:
                     return FuturesPosition(
-                        symbol=pos['symbol'],
-                        side='long' if pos['side'] == 'long' else 'short',
+                        symbol=p['symbol'],
+                        side=p.get('side', 'long'),
                         contracts=abs(contracts),
-                        entry_price=float(pos.get('entryPrice', 0)),
-                        mark_price=float(pos.get('markPrice', 0)),
-                        unrealized_pnl=float(pos.get('unrealizedPnl', 0)),
-                        leverage=int(pos.get('leverage', 1)),
-                        liquidation_price=float(pos['liquidationPrice']) if pos.get('liquidationPrice') else None,
-                        margin_type=pos.get('marginMode', 'cross'),
-                        info=pos.get('info', {}),
+                        entry_price=float(p.get('entryPrice') or 0),
+                        mark_price=float(p.get('markPrice') or 0),
+                        unrealized_pnl=float(p.get('unrealizedPnl') or 0),
+                        leverage=int(p.get('leverage') or 1),
+                        liquidation_price=float(p['liquidationPrice']) if p.get('liquidationPrice') else None,
+                        margin_type=p.get('marginMode', 'cross'),
+                        info=p.get('info', {}),
                     )
             
             return None
@@ -566,20 +570,21 @@ class CCXTFuturesTrader:
             positions = self.exchange.fetch_positions()
             result = []
             
-            for pos in positions:
-                contracts = float(pos.get('contracts', 0))
+            for p in positions:
+                # Use CCXT unified fields directly, NOT p["info"]
+                contracts = float(p.get('contracts') or 0)
                 if contracts != 0:
                     result.append(FuturesPosition(
-                        symbol=pos['symbol'],
-                        side='long' if pos['side'] == 'long' else 'short',
+                        symbol=p['symbol'],
+                        side=p.get('side', 'long'),
                         contracts=abs(contracts),
-                        entry_price=float(pos.get('entryPrice', 0)),
-                        mark_price=float(pos.get('markPrice', 0)),
-                        unrealized_pnl=float(pos.get('unrealizedPnl', 0)),
-                        leverage=int(pos.get('leverage', 1)),
-                        liquidation_price=float(pos['liquidationPrice']) if pos.get('liquidationPrice') else None,
-                        margin_type=pos.get('marginMode', 'cross'),
-                        info=pos.get('info', {}),
+                        entry_price=float(p.get('entryPrice') or 0),
+                        mark_price=float(p.get('markPrice') or 0),
+                        unrealized_pnl=float(p.get('unrealizedPnl') or 0),
+                        leverage=int(p.get('leverage') or 1),
+                        liquidation_price=float(p['liquidationPrice']) if p.get('liquidationPrice') else None,
+                        margin_type=p.get('marginMode', 'cross'),
+                        info=p.get('info', {}),
                     ))
             
             return result
@@ -598,13 +603,24 @@ class CCXTFuturesTrader:
             leverage: Leverage multiplier
             
         Returns:
-            bool: True if successful
+            bool: True if successful or not needed
         """
+        # Check if exchange supports setLeverage
+        if not self.exchange.has.get('setLeverage', False):
+            # Exchange doesn't support leverage setting
+            # This is fine - use exchange/contract defaults
+            return True
+        
         try:
             self.exchange.set_leverage(leverage, symbol)
             print(f"✅ Set leverage for {symbol} to {leverage}x", flush=True)
             return True
         except Exception as e:
+            # Kraken returns error for non-flexible futures - treat as non-fatal
+            error_str = str(e).lower()
+            if 'not_flexible' in error_str or 'contract_not_flexible' in error_str:
+                # Contract doesn't support leverage setting - use defaults
+                return True
             print(f"❌ Failed to set leverage for {symbol}: {e}", flush=True)
             return False
 
@@ -618,8 +634,14 @@ class CCXTFuturesTrader:
             mode: 'cross' or 'isolated'
             
         Returns:
-            bool: True if successful
+            bool: True if successful or not needed
         """
+        # Check if exchange supports setMarginMode
+        if not self.exchange.has.get('setMarginMode', False):
+            # Exchange doesn't support margin mode setting (e.g., Kraken Futures)
+            # This is fine - use exchange defaults
+            return True
+        
         try:
             self.exchange.set_margin_mode(mode, symbol)
             print(f"✅ Set margin mode for {symbol} to {mode}", flush=True)
