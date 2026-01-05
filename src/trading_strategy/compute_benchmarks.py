@@ -77,7 +77,6 @@ class GroupRecord:
     rank: int
     vectors: List[GroupVector]
     selection_score: float
-    zscore_thresholds: Dict[str, float]
     notes: str = ""
 
 
@@ -271,8 +270,7 @@ def _pairs_payload(
                 method="EngleGranger",
                 rank=1,
                 vectors=[vect],
-                selection_score=float(score),
-                zscore_thresholds={"entry": 2.0, "exit": 0.5},
+                selection_score=float(score)
             )
             groups.append(rec)
             
@@ -295,7 +293,7 @@ def _pairs_payload(
 
 def compute_benchmarks(
     symbols: List[str] = None,
-    days_back: int = 30,
+    days_back: float = 30,
     time_scale: str = "hour",
     max_groups: int = 10,
     p_threshold: float = 0.05,
@@ -362,7 +360,7 @@ def compute_benchmarks(
         "computed_on_exchange": EXCHANGE_NAME,  # Track which exchange was used
         "computed_on_testnet": DEMO_MODE,  # Track testnet vs production
         "universe": canonical_universe,  # Store in canonical format
-        "lookback_days": int(days_back),
+        "lookback_days": float(days_back),
         "p_threshold": float(p_threshold),
         "cointegration_groups": [],
         "metrics": {},
@@ -384,7 +382,6 @@ def compute_benchmarks(
             "rank": g.rank,
             "vectors": [asdict(v) for v in g.vectors],
             "selection_score": g.selection_score,
-            "zscore_thresholds": g.zscore_thresholds,
             "notes": g.notes,
         }
         for g in top
@@ -438,7 +435,7 @@ def _parse_args(argv: Optional[Sequence[str]] = None):
     p = argparse.ArgumentParser(description="Compute weekly cointegration benchmarks")
     p.add_argument("--symbols", nargs="+", required=False, 
                    help="List of symbols, e.g., BTC ETH SOL. If not provided, fetches from exchange.")
-    p.add_argument("--days", type=int, default=30, help="Lookback days")
+    p.add_argument("--days", type=float, default=30, help="Lookback days")
     p.add_argument("--time-scale", type=str, default="hour", help="min|hour|day")
     p.add_argument("--max-groups", type=int, default=10, help="Max groups to keep")
     p.add_argument("--p-threshold", type=float, default=0.05, 

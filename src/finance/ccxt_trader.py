@@ -600,13 +600,21 @@ class CCXTFuturesTrader:
             leverage: Leverage multiplier
             
         Returns:
-            bool: True if successful
+            bool: True if successful or if unecessary
         """
+
+        if not self.exchange.has.get("setLeverage", False):
+            return True # use exchange/contract defaults
+        
         try:
             self.exchange.set_leverage(leverage, symbol)
             print(f"✅ Set leverage for {symbol} to {leverage}x", flush=True)
             return True
+        
         except Exception as e:
+            error_str = str(e).lower()
+            if "not_flexible" in error_str or "contract_not_flexible" in error_str:
+                return True
             print(f"❌ Failed to set leverage for {symbol}: {e}", flush=True)
             return False
 
@@ -620,8 +628,11 @@ class CCXTFuturesTrader:
             mode: 'cross' or 'isolated'
             
         Returns:
-            bool: True if successful
+            bool: True if successful or not needed
         """
+        # Check if exchange supports set_margin_mode
+        if not self.exchange.has.get("setMarginMode", False):
+            return True # use exchange defaults
         try:
             self.exchange.set_margin_mode(mode, symbol)
             print(f"✅ Set margin mode for {symbol} to {mode}", flush=True)
@@ -677,7 +688,7 @@ class CCXTFuturesTrader:
                 qty = notional / price
             
             # Round to valid precision
-            market = self.exchange.market(symbol)
+            # market = self.exchange.market(symbol)
             qty = self.exchange.amount_to_precision(symbol, qty)
             
             # Submit market buy order

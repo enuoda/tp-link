@@ -1,6 +1,6 @@
 {
   "version": "1.3",
-  "computed_at_utc": "2026-01-03T22:54:20.210300+00:00",
+  "computed_at_utc": "2026-01-04T21:27:30.449931+00:00",
   "computed_on_exchange": "kraken",
   "computed_on_testnet": true,
   "universe": [
@@ -8,6 +8,7 @@
     "ETH",
     "SOL",
     "XRP",
+    "LTC",
     "BCH",
     "AVAX",
     "LINK",
@@ -17,7 +18,7 @@
     "DOGE",
     "ADA"
   ],
-  "lookback_days": 30,
+  "lookback_days": 5,
   "p_threshold": 0.1,
   "cointegration_groups": [
     {
@@ -31,83 +32,19 @@
       "vectors": [
         {
           "weights": {
-            "SOL": -0.08731043907456648,
+            "SOL": -0.014179749001905814,
             "LINK": 1.0
           },
-          "spread_mean": 1.7557605014370583,
-          "spread_std": 0.4458426421811213,
-          "half_life": 0.8542284927871057,
+          "spread_mean": 11.011314939777963,
+          "spread_std": 0.42236118780045645,
+          "half_life": 5.956755599621326,
           "test_stats": {
-            "t_stat": -13.322857250597428
+            "t_stat": -10.964726463459094
           },
-          "p_value": 6.446768428880481e-24
+          "p_value": 1.0136252645525069e-18
         }
       ],
-      "selection_score": 2.2309460580425196,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "SOL-XRP",
-      "assets": [
-        "SOL",
-        "XRP"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "SOL": -0.010255953923312227,
-            "XRP": 1.0
-          },
-          "spread_mean": 0.6246417772078816,
-          "spread_std": 0.05602834089152977,
-          "half_life": 1.016406999047438,
-          "test_stats": {
-            "t_stat": -10.37977435312236
-          },
-          "p_value": 2.7727636937003666e-17
-        }
-      ],
-      "selection_score": 2.4428759080610267,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "SOL-DOT",
-      "assets": [
-        "SOL",
-        "DOT"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "SOL": -0.01934764514071618,
-            "DOT": 1.0
-          },
-          "spread_mean": -0.5555518487691485,
-          "spread_std": 0.11055888904500245,
-          "half_life": 1.178422207908012,
-          "test_stats": {
-            "t_stat": -6.700914831455579
-          },
-          "p_value": 4.337772248558146e-08
-        }
-      ],
-      "selection_score": 2.3594953147148785,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
+      "selection_score": 1.8468014719020995,
       "notes": ""
     },
     {
@@ -121,83 +58,19 @@
       "vectors": [
         {
           "weights": {
-            "SOL": -0.0038368388469420716,
+            "SOL": -0.0006978613158791704,
             "ADA": 1.0
           },
-          "spread_mean": -0.10686094341762957,
-          "spread_std": 0.022566567090939488,
-          "half_life": 1.2891748224989596,
+          "spread_mean": 0.27880191204386584,
+          "spread_std": 0.02138875971787333,
+          "half_life": 6.781689097048658,
           "test_stats": {
-            "t_stat": -6.575194862266395
+            "t_stat": -10.911174111471977
           },
-          "p_value": 8.46750096662817e-08
+          "p_value": 1.3667395797459878e-18
         }
       ],
-      "selection_score": 2.4147699927042807,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "SOL-ATOM",
-      "assets": [
-        "SOL",
-        "ATOM"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "SOL": -0.01384410674764733,
-            "ATOM": 1.0
-          },
-          "spread_mean": 0.30117144562493936,
-          "spread_std": 0.0869157295903474,
-          "half_life": 1.486628482975836,
-          "test_stats": {
-            "t_stat": -6.065340295718864
-          },
-          "p_value": 1.171942982728219e-06
-        }
-      ],
-      "selection_score": 2.322184303122749,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "SOL-AVAX",
-      "assets": [
-        "SOL",
-        "AVAX"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "SOL": -0.0832302973704826,
-            "AVAX": 1.0
-          },
-          "spread_mean": 2.1551841201299506,
-          "spread_std": 0.5195180640370052,
-          "half_life": 1.4548198131276824,
-          "test_stats": {
-            "t_stat": -5.515728204062684
-          },
-          "p_value": 1.6661044531406688e-05
-        }
-      ],
-      "selection_score": 2.065448610364028,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
+      "selection_score": 2.1075659438870744,
       "notes": ""
     },
     {
@@ -211,59 +84,51 @@
       "vectors": [
         {
           "weights": {
-            "SOL": -0.000871689578585348,
+            "SOL": -0.00035499922887039523,
             "DOGE": 1.0
           },
-          "spread_mean": 0.020490681881522955,
-          "spread_std": 0.0053180961758981645,
-          "half_life": 1.4120513198615101,
+          "spread_mean": 0.08764633214080539,
+          "spread_std": 0.01089874716152744,
+          "half_life": 7.094828461009765,
           "test_stats": {
-            "t_stat": -5.05227169217185
+            "t_stat": -10.904351031543216
           },
-          "p_value": 0.00013180611651922278
+          "p_value": 1.4198821989315548e-18
         }
       ],
-      "selection_score": 2.4091631073414654,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
+      "selection_score": 2.1127544178037834,
       "notes": ""
     },
     {
-      "id": "BTC-DOT",
+      "id": "SOL-LTC",
       "assets": [
-        "BTC",
-        "DOT"
+        "SOL",
+        "LTC"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "BTC": -1.4746037486501713e-05,
-            "DOT": 1.0
+            "SOL": -0.06515149704471607,
+            "LTC": 1.0
           },
-          "spread_mean": 0.6254629261970288,
-          "spread_std": 0.1506082694914584,
-          "half_life": 6.255929702244093,
+          "spread_mean": 71.52772217266947,
+          "spread_std": 2.0097357757883803,
+          "half_life": 6.208210568796595,
           "test_stats": {
-            "t_stat": -4.988978890842729
+            "t_stat": -10.898914607525517
           },
-          "p_value": 0.00017249780983216728
+          "p_value": 1.4637148324097264e-18
         }
       ],
-      "selection_score": 2.0067513378710533,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
+      "selection_score": 1.4709857660903158,
       "notes": ""
     },
     {
-      "id": "BTC-XRP",
+      "id": "SOL-XRP",
       "assets": [
-        "BTC",
+        "SOL",
         "XRP"
       ],
       "method": "EngleGranger",
@@ -271,683 +136,19 @@
       "vectors": [
         {
           "weights": {
-            "BTC": -7.5339810891266e-06,
+            "SOL": -0.0026496981108994153,
             "XRP": 1.0
           },
-          "spread_mean": 1.2757173171426677,
-          "spread_std": 0.07851773720206144,
-          "half_life": 6.057228695346774,
+          "spread_mean": 1.600261050610811,
+          "spread_std": 0.08255060787001307,
+          "half_life": 7.436642599526339,
           "test_stats": {
-            "t_stat": -4.817419407074249
+            "t_stat": -10.877857346127765
           },
-          "p_value": 0.0003515811516723038
+          "p_value": 1.6467890418299686e-18
         }
       ],
-      "selection_score": 2.0685455740746255,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "BTC-SOL",
-      "assets": [
-        "BTC",
-        "SOL"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "BTC": -0.0004854148834273649,
-            "SOL": 1.0
-          },
-          "spread_mean": 85.54706083266247,
-          "spread_std": 5.9030944052247465,
-          "half_life": 1.052298523674719,
-          "test_stats": {
-            "t_stat": -4.736122023026641
-          },
-          "p_value": 0.00048825542149414644
-        }
-      ],
-      "selection_score": 1.631632863715868,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "XRP-LINK",
-      "assets": [
-        "XRP",
-        "LINK"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "XRP": -7.95559530209527,
-            "LINK": 1.0
-          },
-          "spread_mean": -2.4786774153384066,
-          "spread_std": 0.19570159278737162,
-          "half_life": 4.594602710111787,
-          "test_stats": {
-            "t_stat": -4.729375421055338
-          },
-          "p_value": 0.0005016110358284512
-        }
-      ],
-      "selection_score": 2.014571160116843,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "BTC-AVAX",
-      "assets": [
-        "BTC",
-        "AVAX"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "BTC": -6.488937578178753e-05,
-            "AVAX": 1.0
-          },
-          "spread_mean": 7.106924902860543,
-          "spread_std": 0.6780332703541393,
-          "half_life": 6.271021595053277,
-          "test_stats": {
-            "t_stat": -4.682286569011124
-          },
-          "p_value": 0.0006048804003974243
-        }
-      ],
-      "selection_score": 1.7328631158999404,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "BTC-LINK",
-      "assets": [
-        "BTC",
-        "LINK"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "BTC": -6.353979417150142e-05,
-            "LINK": 1.0
-          },
-          "spread_mean": 7.35142153553251,
-          "spread_std": 0.6477637803487589,
-          "half_life": 5.9467910807300255,
-          "test_stats": {
-            "t_stat": -4.6296218588947715
-          },
-          "p_value": 0.0007439715436449997
-        }
-      ],
-      "selection_score": 1.7500904904535997,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "BTC-ADA",
-      "assets": [
-        "BTC",
-        "ADA"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "BTC": -2.8175116694839375e-06,
-            "ADA": 1.0
-          },
-          "spread_mean": 0.13680171012249814,
-          "spread_std": 0.03054267369562813,
-          "half_life": 7.0655333122723265,
-          "test_stats": {
-            "t_stat": -4.612811188484278
-          },
-          "p_value": 0.0007943546516090196
-        }
-      ],
-      "selection_score": 2.0935525408761135,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "BTC-ATOM",
-      "assets": [
-        "BTC",
-        "ATOM"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "BTC": -9.876582454538874e-06,
-            "ATOM": 1.0
-          },
-          "spread_mean": 1.2059983391089901,
-          "spread_std": 0.11482765044466108,
-          "half_life": 7.85004636703319,
-          "test_stats": {
-            "t_stat": -4.419023890219603
-          },
-          "p_value": 0.0016585629973265065
-        }
-      ],
-      "selection_score": 2.008334834290333,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "BTC-DOGE",
-      "assets": [
-        "BTC",
-        "DOGE"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "BTC": -6.253102310894438e-07,
-            "DOGE": 1.0
-          },
-          "spread_mean": 0.0771586896830191,
-          "spread_std": 0.00710781571607924,
-          "half_life": 7.537091241613249,
-          "test_stats": {
-            "t_stat": -4.368047373008566
-          },
-          "p_value": 0.00200095281957302
-        }
-      ],
-      "selection_score": 2.1080773116485956,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "BTC-ETH",
-      "assets": [
-        "BTC",
-        "ETH"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "BTC": -0.010481561463147068,
-            "ETH": 1.0
-          },
-          "spread_mean": 2091.5587718806987,
-          "spread_std": 151.60198584631644,
-          "half_life": 1.8891227895212401,
-          "test_stats": {
-            "t_stat": -4.299066783854853
-          },
-          "p_value": 0.0025690134104450753
-        }
-      ],
-      "selection_score": 1.3501098031281158,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "ETH-ADA",
-      "assets": [
-        "ETH",
-        "ADA"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "ETH": -0.00013776325841729998,
-            "ADA": 1.0
-          },
-          "spread_mean": -0.02971480747463423,
-          "spread_std": 0.02477331243446577,
-          "half_life": 3.1798440799888,
-          "test_stats": {
-            "t_stat": -4.266407604347294
-          },
-          "p_value": 0.0028869291451566444
-        }
-      ],
-      "selection_score": 2.2121820130521095,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "ETH-DOGE",
-      "assets": [
-        "ETH",
-        "DOGE"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "ETH": -3.158407312136759e-05,
-            "DOGE": 1.0
-          },
-          "spread_mean": 0.037154740674961315,
-          "spread_std": 0.0057638390390466355,
-          "half_life": 3.1630912171281227,
-          "test_stats": {
-            "t_stat": -4.259979560986139
-          },
-          "p_value": 0.0029536198931871447
-        }
-      ],
-      "selection_score": 2.231521695289253,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "ETH-XRP",
-      "assets": [
-        "ETH",
-        "XRP"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "ETH": -0.0003440091862982773,
-            "XRP": 1.0
-          },
-          "spread_mean": 0.9040369464694812,
-          "spread_std": 0.06572856040199145,
-          "half_life": 3.3366988575924177,
-          "test_stats": {
-            "t_stat": -4.168050262045124
-          },
-          "p_value": 0.004075919003736769
-        }
-      ],
-      "selection_score": 2.1648394549857595,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "ETH-AVAX",
-      "assets": [
-        "ETH",
-        "AVAX"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "ETH": -0.0029570030819147963,
-            "AVAX": 1.0
-          },
-          "spread_mean": 3.923531887366797,
-          "spread_std": 0.5689992082391725,
-          "half_life": 3.5204992173555536,
-          "test_stats": {
-            "t_stat": -4.166100089536781
-          },
-          "p_value": 0.004103481417895173
-        }
-      ],
-      "selection_score": 1.8544599756320128,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "ETH-LINK",
-      "assets": [
-        "ETH",
-        "LINK"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "ETH": -0.0029697920628007444,
-            "LINK": 1.0
-          },
-          "spread_mean": 4.00990775707323,
-          "spread_std": 0.5274980366460393,
-          "half_life": 3.0838715862642037,
-          "test_stats": {
-            "t_stat": -4.135328388059493
-          },
-          "p_value": 0.004561556678965551
-        }
-      ],
-      "selection_score": 1.8949694509523054,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "ETH-ATOM",
-      "assets": [
-        "ETH",
-        "ATOM"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "ETH": -0.00048592581503011887,
-            "ATOM": 1.0
-          },
-          "spread_mean": 0.6132074603837765,
-          "spread_std": 0.09586691295304228,
-          "half_life": 3.905841685131547,
-          "test_stats": {
-            "t_stat": -3.873703370961553
-          },
-          "p_value": 0.010779712887169187
-        }
-      ],
-      "selection_score": 2.105578473490375,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "AVAX-ATOM",
-      "assets": [
-        "AVAX",
-        "ATOM"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "AVAX": -0.15637080448922236,
-            "ATOM": 1.0
-          },
-          "spread_mean": 0.0707553195679387,
-          "spread_std": 0.042848209789838956,
-          "half_life": 8.923734341340404,
-          "test_stats": {
-            "t_stat": -3.862049792788086
-          },
-          "p_value": 0.011181806368189514
-        }
-      ],
-      "selection_score": 2.0484990349583576,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "BTC-BCH",
-      "assets": [
-        "BTC",
-        "BCH"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "BTC": -0.0002081055934429329,
-            "BCH": 1.0
-          },
-          "spread_mean": 568.4094195781813,
-          "spread_std": 21.564858159624208,
-          "half_life": 53.93953481530304,
-          "test_stats": {
-            "t_stat": -3.6015521417475047
-          },
-          "p_value": 0.024393462544959072
-        }
-      ],
-      "selection_score": 1.0381250639283157,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "BTC-MATIC",
-      "assets": [
-        "BTC",
-        "MATIC"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "BTC": -7.111509383578695e-11,
-            "MATIC": 1.0
-          },
-          "spread_mean": 0.1978798140415122,
-          "spread_std": 0.0002749662727947053,
-          "half_life": 625.1093723513092,
-          "test_stats": {
-            "t_stat": -3.587345979581427
-          },
-          "p_value": 0.0253987190463683
-        }
-      ],
-      "selection_score": 1.9759235553053291,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "ETH-DOT",
-      "assets": [
-        "ETH",
-        "DOT"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "ETH": -0.0006596460572920436,
-            "DOT": 1.0
-          },
-          "spread_mean": -0.06072827725200255,
-          "spread_std": 0.12678544066805478,
-          "half_life": 3.8650204495721776,
-          "test_stats": {
-            "t_stat": -3.486047009096529
-          },
-          "p_value": 0.033652497539568914
-        }
-      ],
-      "selection_score": 2.0593768899735565,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "LINK-ADA",
-      "assets": [
-        "LINK",
-        "ADA"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "LINK": -0.04455970712807243,
-            "ADA": 1.0
-          },
-          "spread_mean": -0.1919976983022155,
-          "spread_std": 0.009907355872048133,
-          "half_life": 9.856927064227813,
-          "test_stats": {
-            "t_stat": -3.3990724649514603
-          },
-          "p_value": 0.04245359520128881
-        }
-      ],
-      "selection_score": 2.039843335551082,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "DOT-ATOM",
-      "assets": [
-        "DOT",
-        "ATOM"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "DOT": -0.6930192503083881,
-            "ATOM": 1.0
-          },
-          "spread_mean": 0.7421947573516664,
-          "spread_std": 0.046407369843956964,
-          "half_life": 14.235312752928714,
-          "test_stats": {
-            "t_stat": -3.305259536200905
-          },
-          "p_value": 0.05401680460212524
-        }
-      ],
-      "selection_score": 1.967270942411961,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "ETH-SOL",
-      "assets": [
-        "ETH",
-        "SOL"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "ETH": -0.01330192845626199,
-            "SOL": 1.0
-          },
-          "spread_mean": 88.36186495138675,
-          "spread_std": 5.924789435164432,
-          "half_life": 0.7698613425757715,
-          "test_stats": {
-            "t_stat": -3.2738467710180905
-          },
-          "p_value": 0.05842162400349198
-        }
-      ],
-      "selection_score": 1.6510031124567126,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
-      "notes": ""
-    },
-    {
-      "id": "XRP-DOGE",
-      "assets": [
-        "XRP",
-        "DOGE"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "XRP": -0.08518089250820923,
-            "DOGE": 1.0
-          },
-          "spread_mean": -0.03296386097090213,
-          "spread_std": 0.002317820240393889,
-          "half_life": 6.391573170068982,
-          "test_stats": {
-            "t_stat": -3.2444173971959773
-          },
-          "p_value": 0.06280848986535201
-        }
-      ],
-      "selection_score": 2.0701682469314484,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
+      "selection_score": 2.0422749063088563,
       "notes": ""
     },
     {
@@ -961,23 +162,123 @@
       "vectors": [
         {
           "weights": {
-            "SOL": 0.16316831924718023,
+            "SOL": -0.6807482375697442,
             "BCH": 1.0
           },
-          "spread_mean": 607.8085887593072,
-          "spread_std": 21.560518676047415,
-          "half_life": 53.90866217144524,
+          "spread_mean": 527.329076203943,
+          "spread_std": 22.60985964863077,
+          "half_life": 8.106894187547942,
           "test_stats": {
-            "t_stat": -3.093991134979394
+            "t_stat": -10.783440906151538
           },
-          "p_value": 0.08951606198800804
+          "p_value": 2.797906089279628e-18
         }
       ],
-      "selection_score": 0.9730212227994193,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
+      "selection_score": 1.152162105968579,
+      "notes": ""
+    },
+    {
+      "id": "SOL-ATOM",
+      "assets": [
+        "SOL",
+        "ATOM"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "SOL": -0.0037515576097127065,
+            "ATOM": 1.0
+          },
+          "spread_mean": 1.622635497427,
+          "spread_std": 0.12364993603697207,
+          "half_life": 8.233947552032088,
+          "test_stats": {
+            "t_stat": -10.781184734694214
+          },
+          "p_value": 2.8336600656680805e-18
+        }
+      ],
+      "selection_score": 1.9982529327944851,
+      "notes": ""
+    },
+    {
+      "id": "SOL-AVAX",
+      "assets": [
+        "SOL",
+        "AVAX"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "SOL": -0.01872882677381496,
+            "AVAX": 1.0
+          },
+          "spread_mean": 10.905518673779257,
+          "spread_std": 0.6710842376454201,
+          "half_life": 8.538916536702127,
+          "test_stats": {
+            "t_stat": -10.652004555371164
+          },
+          "p_value": 5.8766977702869715e-18
+        }
+      ],
+      "selection_score": 1.7032475874899053,
+      "notes": ""
+    },
+    {
+      "id": "SOL-DOT",
+      "assets": [
+        "SOL",
+        "DOT"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "SOL": -0.00418141244114306,
+            "DOT": 1.0
+          },
+          "spread_mean": 1.4393849345234064,
+          "spread_std": 0.15343820791911023,
+          "half_life": 9.526553625032646,
+          "test_stats": {
+            "t_stat": -10.616979195046838
+          },
+          "p_value": 7.167480922198833e-18
+        }
+      ],
+      "selection_score": 1.9619710413392717,
+      "notes": ""
+    },
+    {
+      "id": "BTC-DOGE",
+      "assets": [
+        "BTC",
+        "DOGE"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -4.096647095202001e-06,
+            "DOGE": 1.0
+          },
+          "spread_mean": -0.23307782958846204,
+          "spread_std": 0.009074415220057943,
+          "half_life": 1.6221776060388071,
+          "test_stats": {
+            "t_stat": -10.151601844361863
+          },
+          "p_value": 1.0311193731967972e-16
+        }
+      ],
+      "selection_score": 2.3723696102284877,
       "notes": ""
     },
     {
@@ -991,53 +292,721 @@
       "vectors": [
         {
           "weights": {
-            "SOL": 3.6890888304146746e-06,
+            "SOL": -1.2934219231531836e-06,
             "MATIC": 1.0
           },
-          "spread_mean": 0.19836026739280374,
-          "spread_std": 0.0002739857390610059,
-          "half_life": 191.88592088552534,
+          "spread_mean": 0.1983071727928574,
+          "spread_std": 0.00011974995776942457,
+          "half_life": 2.944145490806466,
           "test_stats": {
-            "t_stat": -3.0927289302220977
+            "t_stat": -10.06829859250092
           },
-          "p_value": 0.08977254205731067
+          "p_value": 1.6698058439221482e-16
         }
       ],
-      "selection_score": 1.9151379588216195,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
+      "selection_score": 2.253420607233265,
       "notes": ""
     },
     {
-      "id": "BCH-MATIC",
+      "id": "BTC-ADA",
       "assets": [
-        "BCH",
-        "MATIC"
+        "BTC",
+        "ADA"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "BCH": -8.088854135608095e-06,
-            "MATIC": 1.0
+            "BTC": -7.959813073037113e-06,
+            "ADA": 1.0
           },
-          "spread_mean": 0.19313927491301797,
-          "spread_std": 0.00021242014936776984,
-          "half_life": 30.913723340314814,
+          "spread_mean": -0.34331689312056357,
+          "spread_std": 0.017915428344350295,
+          "half_life": 1.6696473425560037,
           "test_stats": {
-            "t_stat": -3.06421347102768
+            "t_stat": -10.041321788513146
           },
-          "p_value": 0.09571906923440521
+          "p_value": 1.9524481482147773e-16
         }
       ],
-      "selection_score": 1.9354030380560936,
-      "zscore_thresholds": {
-        "entry": 2.0,
-        "exit": 0.5
-      },
+      "selection_score": 2.3569811956950604,
+      "notes": ""
+    },
+    {
+      "id": "BTC-LINK",
+      "assets": [
+        "BTC",
+        "LINK"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.0001570921281895368,
+            "LINK": 1.0
+          },
+          "spread_mean": -1.2137975864493464,
+          "spread_std": 0.3553526027675839,
+          "half_life": 1.6512181244837598,
+          "test_stats": {
+            "t_stat": -9.996030107234654
+          },
+          "p_value": 2.539344169064984e-16
+        }
+      ],
+      "selection_score": 2.115000493244375,
+      "notes": ""
+    },
+    {
+      "id": "BTC-XRP",
+      "assets": [
+        "BTC",
+        "XRP"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -3.0336893029219193e-05,
+            "XRP": 1.0
+          },
+          "spread_mean": -0.772095106238728,
+          "spread_std": 0.06947409776333395,
+          "half_life": 1.7464442231615218,
+          "test_stats": {
+            "t_stat": -9.940529094525276
+          },
+          "p_value": 3.505834071032021e-16
+        }
+      ],
+      "selection_score": 2.299146166255041,
+      "notes": ""
+    },
+    {
+      "id": "BTC-ATOM",
+      "assets": [
+        "BTC",
+        "ATOM"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -4.372570249069649e-05,
+            "ATOM": 1.0
+          },
+          "spread_mean": -1.805495602237275,
+          "spread_std": 0.10541259836817138,
+          "half_life": 1.9434060493640717,
+          "test_stats": {
+            "t_stat": -9.67393159453089
+          },
+          "p_value": 1.660662781360295e-15
+        }
+      ],
+      "selection_score": 2.2443820461358617,
+      "notes": ""
+    },
+    {
+      "id": "BTC-BCH",
+      "assets": [
+        "BTC",
+        "BCH"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.007583445870228793,
+            "BCH": 1.0
+          },
+          "spread_mean": -63.31277859240493,
+          "spread_std": 19.730277683202164,
+          "half_life": 2.262826880552911,
+          "test_stats": {
+            "t_stat": -9.321467057817713
+          },
+          "p_value": 1.3131402097000184e-14
+        }
+      ],
+      "selection_score": 1.3547213230521509,
+      "notes": ""
+    },
+    {
+      "id": "ETH-LTC",
+      "assets": [
+        "ETH",
+        "LTC"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ETH": -0.003571345618781913,
+            "LTC": 1.0
+          },
+          "spread_mean": 69.26119543015774,
+          "spread_std": 1.8492723336792363,
+          "half_life": 4.367120278778571,
+          "test_stats": {
+            "t_stat": -6.514425305173633
+          },
+          "p_value": 1.1666985594760764e-07
+        }
+      ],
+      "selection_score": 1.5372863409335764,
+      "notes": ""
+    },
+    {
+      "id": "ETH-DOT",
+      "assets": [
+        "ETH",
+        "DOT"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ETH": -0.00026903091263473137,
+            "DOT": 1.0
+          },
+          "spread_mean": 1.1743830568987599,
+          "spread_std": 0.1393363699782794,
+          "half_life": 4.782230124861356,
+          "test_stats": {
+            "t_stat": -6.472802058290165
+          },
+          "p_value": 1.4515548709496197e-07
+        }
+      ],
+      "selection_score": 2.050647429438677,
+      "notes": ""
+    },
+    {
+      "id": "ETH-XRP",
+      "assets": [
+        "ETH",
+        "XRP"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ETH": -0.00010922400677291203,
+            "XRP": 1.0
+          },
+          "spread_mean": 1.6162099234428686,
+          "spread_std": 0.08074287884754398,
+          "half_life": 8.40820864817275,
+          "test_stats": {
+            "t_stat": -6.439922239430557
+          },
+          "p_value": 1.7238640819252992e-07
+        }
+      ],
+      "selection_score": 2.0315794521863277,
+      "notes": ""
+    },
+    {
+      "id": "ETH-LINK",
+      "assets": [
+        "ETH",
+        "LINK"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ETH": -0.0006304719585845022,
+            "LINK": 1.0
+          },
+          "spread_mean": 10.958692356971543,
+          "spread_std": 0.4068092014089388,
+          "half_life": 5.941606579879226,
+          "test_stats": {
+            "t_stat": -6.190361049703897
+          },
+          "p_value": 6.236732369672395e-07
+        }
+      ],
+      "selection_score": 1.854886693441274,
+      "notes": ""
+    },
+    {
+      "id": "ETH-BCH",
+      "assets": [
+        "ETH",
+        "BCH"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ETH": -0.025502067411577692,
+            "BCH": 1.0
+          },
+          "spread_mean": 539.1088033518658,
+          "spread_std": 22.419280113797175,
+          "half_life": 13.252945870084437,
+          "test_stats": {
+            "t_stat": -6.189920708052824
+          },
+          "p_value": 6.250705374225985e-07
+        }
+      ],
+      "selection_score": 1.1128601700773573,
+      "notes": ""
+    },
+    {
+      "id": "ETH-AVAX",
+      "assets": [
+        "ETH",
+        "AVAX"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ETH": -0.0009859953727232426,
+            "AVAX": 1.0
+          },
+          "spread_mean": 10.375973133176506,
+          "spread_std": 0.6369371843859994,
+          "half_life": 6.085076765505784,
+          "test_stats": {
+            "t_stat": -6.14173291958708
+          },
+          "p_value": 7.979791408620569e-07
+        }
+      ],
+      "selection_score": 1.7520379239260828,
+      "notes": ""
+    },
+    {
+      "id": "ETH-ADA",
+      "assets": [
+        "ETH",
+        "ADA"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ETH": -3.0432894937270635e-05,
+            "ADA": 1.0
+          },
+          "spread_mean": 0.278001115558455,
+          "spread_std": 0.02071613403130837,
+          "half_life": 6.5489695252977445,
+          "test_stats": {
+            "t_stat": -6.136892839800442
+          },
+          "p_value": 8.177336596964494e-07
+        }
+      ],
+      "selection_score": 2.1121719076882255,
+      "notes": ""
+    },
+    {
+      "id": "ETH-ATOM",
+      "assets": [
+        "ETH",
+        "ATOM"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ETH": -0.0001863509325376716,
+            "ATOM": 1.0
+          },
+          "spread_mean": 1.550041171355474,
+          "spread_std": 0.11763361157201543,
+          "half_life": 7.085556681009603,
+          "test_stats": {
+            "t_stat": -6.05238513130642
+          },
+          "p_value": 1.2504352946311366e-06
+        }
+      ],
+      "selection_score": 2.0184236793986763,
+      "notes": ""
+    },
+    {
+      "id": "ETH-DOGE",
+      "assets": [
+        "ETH",
+        "DOGE"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ETH": -1.568011224580947e-05,
+            "DOGE": 1.0
+          },
+          "spread_mean": 0.08664156053486591,
+          "spread_std": 0.010533794222619054,
+          "half_life": 7.131898129557766,
+          "test_stats": {
+            "t_stat": -6.043280206677942
+          },
+          "p_value": 1.3086448328879242e-06
+        }
+      ],
+      "selection_score": 2.1125472206378024,
+      "notes": ""
+    },
+    {
+      "id": "MATIC-ADA",
+      "assets": [
+        "MATIC",
+        "ADA"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "MATIC": -32.43913043480155,
+            "ADA": 1.0
+          },
+          "spread_mean": -6.069003913047237,
+          "spread_std": 0.022080861062992087,
+          "half_life": 91.51905726864246,
+          "test_stats": {
+            "t_stat": -5.226884570338351
+          },
+          "p_value": 6.16778305455875e-05
+        }
+      ],
+      "selection_score": 1.9891430762502598,
+      "notes": ""
+    },
+    {
+      "id": "MATIC-DOGE",
+      "assets": [
+        "MATIC",
+        "DOGE"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "MATIC": -18.046000000009435,
+            "DOGE": 1.0
+          },
+          "spread_mean": -3.4479708000018734,
+          "spread_std": 0.011215816057183352,
+          "half_life": 225.47009072684304,
+          "test_stats": {
+            "t_stat": -5.1869325261974675
+          },
+          "p_value": 7.354229328178526e-05
+        }
+      ],
+      "selection_score": 1.9932506350555257,
+      "notes": ""
+    },
+    {
+      "id": "BTC-AVAX",
+      "assets": [
+        "BTC",
+        "AVAX"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.0002166662234531324,
+            "AVAX": 1.0
+          },
+          "spread_mean": -6.063204206459465,
+          "spread_std": 0.5901418595373572,
+          "half_life": 2.464880074025167,
+          "test_stats": {
+            "t_stat": -4.358164764751331
+          },
+          "p_value": 0.002074485235356237
+        }
+      ],
+      "selection_score": 1.9154105018726426,
+      "notes": ""
+    },
+    {
+      "id": "BTC-LTC",
+      "assets": [
+        "BTC",
+        "LTC"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.0006863945160344598,
+            "LTC": 1.0
+          },
+          "spread_mean": 18.52615902492976,
+          "spread_std": 1.755540332590608,
+          "half_life": 2.122626240030031,
+          "test_stats": {
+            "t_stat": -4.311335984005641
+          },
+          "p_value": 0.0024581707083034315
+        }
+      ],
+      "selection_score": 1.6806903177550248,
+      "notes": ""
+    },
+    {
+      "id": "BTC-DOT",
+      "assets": [
+        "BTC",
+        "DOT"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -4.6223653885237305e-05,
+            "DOT": 1.0
+          },
+          "spread_mean": -2.1566207668903017,
+          "spread_std": 0.13797949192243394,
+          "half_life": 3.1183989222285136,
+          "test_stats": {
+            "t_stat": -3.985523541884366
+          },
+          "p_value": 0.007530011170978395
+        }
+      ],
+      "selection_score": 2.114033253429842,
+      "notes": ""
+    },
+    {
+      "id": "DOGE-ADA",
+      "assets": [
+        "DOGE",
+        "ADA"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "DOGE": -1.9309279344259327,
+            "ADA": 1.0
+          },
+          "spread_mean": 0.11116996026944624,
+          "spread_std": 0.004024255664698025,
+          "half_life": 2.9439197818204255,
+          "test_stats": {
+            "t_stat": -3.724863070902704
+          },
+          "p_value": 0.017019446141848887
+        }
+      ],
+      "selection_score": 2.232527280784299,
+      "notes": ""
+    },
+    {
+      "id": "LTC-ADA",
+      "assets": [
+        "LTC",
+        "ADA"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC": -0.010127845762488898,
+            "ADA": 1.0
+          },
+          "spread_mean": -0.44068695186535894,
+          "spread_std": 0.006927268690500992,
+          "half_life": 3.192234591185594,
+          "test_stats": {
+            "t_stat": -3.6501160949817044
+          },
+          "p_value": 0.02121192015300907
+        }
+      ],
+      "selection_score": 2.2104447375160174,
+      "notes": ""
+    },
+    {
+      "id": "LTC-AVAX",
+      "assets": [
+        "LTC",
+        "AVAX"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC": -0.3108917875922562,
+            "AVAX": 1.0
+          },
+          "spread_mean": -11.529898934994408,
+          "spread_std": 0.23329578460233144,
+          "half_life": 3.1466378646807676,
+          "test_stats": {
+            "t_stat": -3.5156502088690877
+          },
+          "p_value": 0.0310330221299518
+        }
+      ],
+      "selection_score": 2.0209617058181504,
+      "notes": ""
+    },
+    {
+      "id": "ATOM-DOGE",
+      "assets": [
+        "ATOM",
+        "DOGE"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ATOM": -0.08650255781783726,
+            "DOGE": 1.0
+          },
+          "spread_mean": -0.048760887170242885,
+          "spread_std": 0.002511116273203391,
+          "half_life": 2.9402514926404746,
+          "test_stats": {
+            "t_stat": -3.502294982718967
+          },
+          "p_value": 0.03219248484646993
+        }
+      ],
+      "selection_score": 2.2190935957587605,
+      "notes": ""
+    },
+    {
+      "id": "ATOM-ADA",
+      "assets": [
+        "ATOM",
+        "ADA"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "ATOM": -0.16771236224481836,
+            "ADA": 1.0
+          },
+          "spread_mean": 0.015577247874742729,
+          "spread_std": 0.005992902734153612,
+          "half_life": 3.2464628177103667,
+          "test_stats": {
+            "t_stat": -3.4996881704588265
+          },
+          "p_value": 0.032423041364655236
+        }
+      ],
+      "selection_score": 2.1971098677615215,
+      "notes": ""
+    },
+    {
+      "id": "BTC-ETH",
+      "assets": [
+        "BTC",
+        "ETH"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.04059940623481187,
+            "ETH": 1.0
+          },
+          "spread_mean": -633.2725648307794,
+          "spread_std": 273.49886374405884,
+          "half_life": 0.9847630254278023,
+          "test_stats": {
+            "t_stat": -3.3848144906292412
+          },
+          "p_value": 0.04406533219769327
+        }
+      ],
+      "selection_score": 1.4634161572398527,
+      "notes": ""
+    },
+    {
+      "id": "LTC-ATOM",
+      "assets": [
+        "LTC",
+        "ATOM"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC": -0.05802082611690437,
+            "ATOM": 1.0
+          },
+          "spread_mean": -2.531171202333677,
+          "spread_std": 0.04089229599165483,
+          "half_life": 4.011136973796873,
+          "test_stats": {
+            "t_stat": -3.2119494639998987
+          },
+          "p_value": 0.06795208856748289
+        }
+      ],
+      "selection_score": 2.0923176134735586,
+      "notes": ""
+    },
+    {
+      "id": "AVAX-ATOM",
+      "assets": [
+        "AVAX",
+        "ATOM"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "AVAX": -0.17703174609434155,
+            "ATOM": 1.0
+          },
+          "spread_mean": -0.25141968866544073,
+          "spread_std": 0.03823526306533364,
+          "half_life": 4.296350294269231,
+          "test_stats": {
+            "t_stat": -3.1903551659950358
+          },
+          "p_value": 0.07155560006015178
+        }
+      ],
+      "selection_score": 2.0804264971008837,
       "notes": ""
     }
   ],

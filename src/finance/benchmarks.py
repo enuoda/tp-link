@@ -73,26 +73,35 @@ def _convert_assets_to_exchange(assets: List[str]) -> List[str]:
 # ==================================================
 
 
-def entry_exit_signal(group: dict, price_map: Dict[str, float]) -> Dict[str, float | str]:
+def entry_exit_signal(
+    group: dict,
+    price_map: Dict[str, float],
+    entry_zscore: float = 2.0,
+    exit_zscore: float = 0.5,
+) -> Dict[str, float | str]:
     """
     Generate entry/exit signal based on current prices and benchmark parameters.
     
     Args:
         group: Cointegration group from benchmark file
         price_map: Current prices (can be in any symbol format)
-        
+        entry_zscore: Z-score threshold for entry signals
+        exit_zscore: Z-score threshold for exit signals
+
     Returns:
         Dict with 'zscore' and 'signal' ('HOLD', 'SELL_SPREAD', 'BUY_SPREAD', 'EXIT')
     """
     z = zscore_from_prices(group, price_map)
-    thr = group.get("zscore_thresholds", {"entry": 2.0, "exit": 0.5})
-    entry, exit_ = float(thr.get("entry", 2.0)), float(thr.get("exit", 0.5))
+
+    # thr = group.get("zscore_thresholds", {"entry": 2.0, "exit": 0.5})
+    # entry, exit_ = float(thr.get("entry", 2.0)), float(thr.get("exit", 0.5))
+    
     signal = "HOLD"
-    if z >= entry:
+    if z >= entry_zscore:
         signal = "SELL_SPREAD"  # short the positive-spread direction
-    elif z <= -entry:
+    elif z <= -entry_zscore:
         signal = "BUY_SPREAD"   # long the spread
-    elif abs(z) <= exit_:
+    elif abs(z) <= exit_zscore:
         signal = "EXIT"
     return {"zscore": z, "signal": signal}
 

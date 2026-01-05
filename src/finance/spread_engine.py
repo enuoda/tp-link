@@ -351,9 +351,12 @@ class SpreadSignalEngine:
         if np.isnan(zscore):
             return None
         
-        thresholds = group.get("zscore_thresholds", {})
-        entry_thr = float(thresholds.get("entry", self.entry_zscore))
-        exit_thr = float(thresholds.get("exit", self.exit_zscore))
+        # thresholds = group.get("zscore_thresholds", {})
+        # entry_thr = float(thresholds.get("entry", self.entry_zscore))
+        # exit_thr = float(thresholds.get("exit", self.exit_zscore))
+
+        entry_thr = self.entry_zscore
+        exit_thr = self.exit_zscore
         
         confidence = 0.0
         signal_type = SignalType.HOLD
