@@ -479,6 +479,9 @@ def run_indefinitely(
         lookback_bars=lookback_bars,
     )
     
+    # Set trader.symbols for P&L updates in _update_spread_positions
+    trader.symbols = all_symbols
+    
     # ===== start streaming =====
     try:
         logger.info("📡 Starting real-time streaming...")

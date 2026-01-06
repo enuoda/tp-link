@@ -378,10 +378,15 @@ class TradingPartner:
             quantities: Dict[str, float] = {}
             entry_prices: Dict[str, float] = {}
             leg_notionals: Dict[str, float] = {}
+            opened_assets: List[str] = []  # Track successfully opened legs for rollback
             
             for asset in assets:
                 if asset not in price_map:
                     logger.error(f"Missing price for {asset}")
+                    # Rollback: close any already-opened positions
+                    for opened_asset in opened_assets:
+                        logger.info(f"🔄 Rolling back: closing {opened_asset}")
+                        self.crypto_trader.close_position(opened_asset)
                     return False
 
                 price = price_map[asset]
@@ -406,6 +411,10 @@ class TradingPartner:
                     )
                     if order is None:
                         logger.error(f"❌ LONG order failed for {asset}, aborting spread entry")
+                        # Rollback: close any already-opened positions
+                        for opened_asset in opened_assets:
+                            logger.info(f"🔄 Rolling back: closing {opened_asset}")
+                            self.crypto_trader.close_position(opened_asset)
                         return False
                     logger.info(f"(LONG) 🟢 LONG {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
                 else:
@@ -415,10 +424,15 @@ class TradingPartner:
                     )
                     if order is None:
                         logger.error(f"❌ SHORT order failed for {asset}, aborting spread entry")
+                        # Rollback: close any already-opened positions
+                        for opened_asset in opened_assets:
+                            logger.info(f"🔄 Rolling back: closing {opened_asset}")
+                            self.crypto_trader.close_position(opened_asset)
                         return False
                     logger.info(f"(LONG) 🔴 SHORT {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
                 
                 orders.append(order)
+                opened_assets.append(asset)  # Track this leg as successfully opened
             
             # Calculate total notional from weighted leg notionals
             total_notional = sum(leg_notionals.values())
@@ -490,10 +504,15 @@ class TradingPartner:
             quantities: Dict[str, float] = {}
             entry_prices: Dict[str, float] = {}
             leg_notionals: Dict[str, float] = {}
+            opened_assets: List[str] = []  # Track successfully opened legs for rollback
             
             for asset in assets:
                 if asset not in price_map:
                     logger.error(f"Missing price for {asset}")
+                    # Rollback: close any already-opened positions
+                    for opened_asset in opened_assets:
+                        logger.info(f"🔄 Rolling back: closing {opened_asset}")
+                        self.crypto_trader.close_position(opened_asset)
                     return False
                 
                 price = price_map[asset]
@@ -518,6 +537,10 @@ class TradingPartner:
                     )
                     if order is None:
                         logger.error(f"❌ SHORT order failed for {asset}, aborting spread entry")
+                        # Rollback: close any already-opened positions
+                        for opened_asset in opened_assets:
+                            logger.info(f"🔄 Rolling back: closing {opened_asset}")
+                            self.crypto_trader.close_position(opened_asset)
                         return False
                     logger.info(f"(SHORT) 🔴 SHORT {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
                 else:
@@ -527,10 +550,15 @@ class TradingPartner:
                     )
                     if order is None:
                         logger.error(f"❌ LONG order failed for {asset}, aborting spread entry")
+                        # Rollback: close any already-opened positions
+                        for opened_asset in opened_assets:
+                            logger.info(f"🔄 Rolling back: closing {opened_asset}")
+                            self.crypto_trader.close_position(opened_asset)
                         return False
                     logger.info(f"(SHORT) 🟢 LONG {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
                 
                 orders.append(order)
+                opened_assets.append(asset)  # Track this leg as successfully opened
             
             # Calculate total notional from weighted leg notionals
             total_notional = sum(leg_notionals.values())
@@ -920,21 +948,60 @@ class TradingPartner:
 
 
     def _log_spread_positions(self) -> None:
-        """Log summary of open spread positions."""
+        """Log summary of open spread positions with exchange P&L and leg details."""
         if not self._spread_positions:
             return
         
         logger.info("\n📋 OPEN SPREAD POSITIONS:")
-        logger.info("-" * 50)
+        logger.info("-" * 60)
+        
+        # Fetch actual positions from exchange for accurate P&L
+        try:
+            exchange_positions = {p.symbol: p for p in self.crypto_trader.get_all_positions()}
+        except Exception as e:
+            logger.warning(f"Could not fetch exchange positions: {e}")
+            exchange_positions = {}
         
         total_pnl = 0.0
         for group_id, pos in self._spread_positions.items():
-            total_pnl += pos.unrealized_pnl
             z_str = f"{pos.current_zscore:.2f}" if pos.current_zscore == pos.current_zscore else "N/A"
+            
+            # Calculate P&L from exchange positions (more accurate - includes fees)
+            exchange_pnl = 0.0
+            for asset in pos.assets:
+                if asset in exchange_positions:
+                    exchange_pnl += exchange_positions[asset].unrealized_pnl
+            
+            # Use exchange P&L if available, otherwise use calculated P&L
+            displayed_pnl = exchange_pnl if exchange_pnl != 0 else pos.unrealized_pnl
+            total_pnl += displayed_pnl
+            
             logger.info(
                 f"  {group_id}: {pos.side} | Entry z={pos.entry_zscore:.2f} | "
-                f"Current z={z_str} | P&L=${pos.unrealized_pnl:+.2f}"
+                f"Current z={z_str} | P&L=${displayed_pnl:+.2f}"
             )
+            
+            # Log individual legs with details
+            for asset in pos.assets:
+                qty = pos.quantities.get(asset, 0)
+                side = "LONG" if qty > 0 else "SHORT"
+                entry = pos.entry_prices.get(asset, 0)
+                current = pos.current_prices.get(asset, entry)
+                
+                # Show exchange position info if available (more accurate)
+                if asset in exchange_positions:
+                    ep = exchange_positions[asset]
+                    logger.info(
+                        f"    └─ {asset}: {side} {abs(qty):.6f} @ ${entry:.2f} → ${current:.2f} "
+                        # f"(P&L: ${ep.unrealized_pnl:+.2f})"
+                    )
+                else:
+                    # Fallback to calculated P&L
+                    leg_pnl = qty * (current - entry)
+                    logger.info(
+                        f"    └─ {asset}: {side} {abs(qty):.6f} @ ${entry:.2f} → ${current:.2f} "
+                        f"(calc P&L: ${leg_pnl:+.2f})"
+                    )
         
         logger.info(f"  TOTAL P&L: ${total_pnl:+.2f}")
-        logger.info("-" * 50)
+        logger.info("-" * 60)
