@@ -26,9 +26,8 @@ import time
 import traceback
 from typing import Dict, List, Optional
 
-from . import CRYPTO_TICKERS, EXCHANGE_CONFIG #, EXCHANGE_NAME
+from . import CRYPTO_TICKERS, EXCHANGE_CONFIG, MAX_SPREAD_NOTIONAL, MIN_SPREAD_NOTIONAL, MAX_SPREAD_POSITIONS
 from .ccxt_trader import CCXTFuturesTrader
-# from . import canonical_to_exchange, exchange_to_canonical
 from .benchmarks import (
     load_benchmarks,
     is_stale,
@@ -140,9 +139,9 @@ class TradingPartner:
     def __init__(
         self,
         paper: bool = True,
-        spread_notional: float = 10_000.0,
-        min_spread_notional: float = 10.0,
-        max_spread_positions: int = 15,
+        spread_notional: float = MAX_SPREAD_NOTIONAL,
+        min_spread_notional: float = MIN_SPREAD_NOTIONAL,
+        max_spread_positions: int = MAX_SPREAD_POSITIONS,
         buying_power_buffer: float = 0.9,
     ) -> None:
         """

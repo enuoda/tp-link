@@ -1,6 +1,6 @@
 {
   "version": "1.3",
-  "computed_at_utc": "2026-01-06T01:06:55.308307+00:00",
+  "computed_at_utc": "2026-01-07T05:29:57.192921+00:00",
   "computed_on_exchange": "kraken",
   "computed_on_testnet": true,
   "universe": [
@@ -16,345 +16,111 @@
     "DOGE",
     "ADA"
   ],
-  "lookback_days": 0,
-  "p_threshold": 0.2,
+  "lookback_days": 7,
+  "p_threshold": 0.1,
   "cointegration_groups": [
     {
-      "id": "SOL-LINK",
+      "id": "SOL-AVAX",
       "assets": [
         "SOL",
-        "LINK"
+        "AVAX"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "SOL": -0.08802199517053655,
-            "LINK": 1.0
+            "SOL": -0.03580465456354078,
+            "AVAX": 1.0
           },
-          "spread_mean": 1.7302022995233521,
-          "spread_std": 0.07447005016474484,
-          "half_life": 1.8640349451036067,
+          "spread_mean": 8.974130368052274,
+          "spread_std": 0.668185329383923,
+          "half_life": 3.3010599011857527,
           "test_stats": {
-            "t_stat": -5.690462327261862
+            "t_stat": -12.169617576949518
           },
-          "p_value": 7.325422968771358e-06
+          "p_value": 1.6111233009931517e-21
         }
       ],
-      "selection_score": 2.2798417926979386,
+      "selection_score": 1.8319546098564397,
       "notes": ""
     },
     {
-      "id": "LTC-LINK",
-      "assets": [
-        "LTC",
-        "LINK"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "LTC": -0.2644938015737288,
-            "LINK": 1.0
-          },
-          "spread_mean": -8.296992550068792,
-          "spread_std": 0.07539024162983314,
-          "half_life": 5.268118317249821,
-          "test_stats": {
-            "t_stat": -5.015165831043491
-          },
-          "p_value": 0.00015438886515576489
-        }
-      ],
-      "selection_score": 2.089278114806889,
-      "notes": ""
-    },
-    {
-      "id": "BCH-ADA",
-      "assets": [
-        "BCH",
-        "ADA"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "BCH": 0.0025208001298910655,
-            "ADA": 1.0
-          },
-          "spread_mean": 2.0426089560702247,
-          "spread_std": 0.004267897748384847,
-          "half_life": 20.48032441765077,
-          "test_stats": {
-            "t_stat": -4.592551266370765
-          },
-          "p_value": 0.0008593304684058682
-        }
-      ],
-      "selection_score": 2.0414451410284618,
-      "notes": ""
-    },
-    {
-      "id": "LINK-ATOM",
-      "assets": [
-        "LINK",
-        "ATOM"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "LINK": -0.14952928202100405,
-            "ATOM": 1.0
-          },
-          "spread_mean": 0.29841706764404324,
-          "spread_std": 0.01625302970459706,
-          "half_life": 10.2703316258159,
-          "test_stats": {
-            "t_stat": -4.040140262602023
-          },
-          "p_value": 0.006289358855043515
-        }
-      ],
-      "selection_score": 2.066446081410681,
-      "notes": ""
-    },
-    {
-      "id": "DOT-ATOM",
-      "assets": [
-        "DOT",
-        "ATOM"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "DOT": -0.9510855471242509,
-            "ATOM": 1.0
-          },
-          "spread_mean": 0.27877928893859755,
-          "spread_std": 0.010349010935279387,
-          "half_life": 13.249225474184763,
-          "test_stats": {
-            "t_stat": -4.013402746134904
-          },
-          "p_value": 0.00687152983002887
-        }
-      ],
-      "selection_score": 2.053064717242917,
-      "notes": ""
-    },
-    {
-      "id": "XRP-ADA",
-      "assets": [
-        "XRP",
-        "ADA"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "XRP": -0.08751299987560877,
-            "ADA": 1.0
-          },
-          "spread_mean": 0.21572079021741683,
-          "spread_std": 0.00295677389581958,
-          "half_life": 13.93766053548985,
-          "test_stats": {
-            "t_stat": -3.912894166001687
-          },
-          "p_value": 0.009520418960306457
-        }
-      ],
-      "selection_score": 2.0544764111104197,
-      "notes": ""
-    },
-    {
-      "id": "LINK-ADA",
-      "assets": [
-        "LINK",
-        "ADA"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "LINK": -0.0411270642245637,
-            "ADA": 1.0
-          },
-          "spread_mean": -0.15456586611601597,
-          "spread_std": 0.0047663261419265525,
-          "half_life": 9.504295744158819,
-          "test_stats": {
-            "t_stat": -3.9066205709462927
-          },
-          "p_value": 0.009712709468006106
-        }
-      ],
-      "selection_score": 2.0807427219943513,
-      "notes": ""
-    },
-    {
-      "id": "LINK-DOT",
-      "assets": [
-        "LINK",
-        "DOT"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "LINK": -0.15245615755056927,
-            "DOT": 1.0
-          },
-          "spread_mean": 0.08625925699999065,
-          "spread_std": 0.014928876765257275,
-          "half_life": 8.858482588670453,
-          "test_stats": {
-            "t_stat": -3.747412308167773
-          },
-          "p_value": 0.015906348439413246
-        }
-      ],
-      "selection_score": 2.070819856657615,
-      "notes": ""
-    },
-    {
-      "id": "SOL-LTC",
+      "id": "SOL-BCH",
       "assets": [
         "SOL",
-        "LTC"
+        "BCH"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "SOL": -0.30184162926056923,
-            "LTC": 1.0
+            "SOL": -1.035535297408325,
+            "BCH": 1.0
           },
-          "spread_mean": 42.14603200867439,
-          "spread_std": 0.25959574495895055,
-          "half_life": 2.6615733301648876,
+          "spread_mean": 488.1814499247036,
+          "spread_std": 21.948154133864502,
+          "half_life": 4.239459658437022,
           "test_stats": {
-            "t_stat": -3.600773038527728
+            "t_stat": -11.72807551471042
           },
-          "p_value": 0.024447690566238186
+          "p_value": 1.595509823462208e-20
         }
       ],
-      "selection_score": 2.042564460529539,
+      "selection_score": 1.2344358654137486,
       "notes": ""
     },
     {
-      "id": "LTC-DOT",
-      "assets": [
-        "LTC",
-        "DOT"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "LTC": -0.0469762457787953,
-            "DOT": 1.0
-          },
-          "spread_mean": -1.7337967883991863,
-          "spread_std": 0.011336430060708546,
-          "half_life": 15.860146480443145,
-          "test_stats": {
-            "t_stat": -3.587300555669612
-          },
-          "p_value": 0.02540198968750528
-        }
-      ],
-      "selection_score": 2.0227001200513532,
-      "notes": ""
-    },
-    {
-      "id": "LTC-ATOM",
-      "assets": [
-        "LTC",
-        "ATOM"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "LTC": -0.045870544119431596,
-            "ATOM": 1.0
-          },
-          "spread_mean": -1.4696872139636594,
-          "spread_std": 0.01345385043417113,
-          "half_life": 22.20873484743677,
-          "test_stats": {
-            "t_stat": -3.277549520041869
-          },
-          "p_value": 0.057887716922298375
-        }
-      ],
-      "selection_score": 1.9719242616816492,
-      "notes": ""
-    },
-    {
-      "id": "XRP-LINK",
-      "assets": [
-        "XRP",
-        "LINK"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "XRP": -1.7009180614940105,
-            "LINK": 1.0
-          },
-          "spread_mean": 9.960668411711056,
-          "spread_std": 0.08214961557294365,
-          "half_life": 7.382765859600709,
-          "test_stats": {
-            "t_stat": -3.1484025952208663
-          },
-          "p_value": 0.07898873834517478
-        }
-      ],
-      "selection_score": 1.9643902688111878,
-      "notes": ""
-    },
-    {
-      "id": "SOL-ATOM",
+      "id": "SOL-XRP",
       "assets": [
         "SOL",
-        "ATOM"
+        "XRP"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "SOL": -0.014589100318930777,
-            "ATOM": 1.0
+            "SOL": -0.009141287307461447,
+            "XRP": 1.0
           },
-          "spread_mean": 0.361850330864463,
-          "spread_std": 0.015698207988174152,
-          "half_life": 4.206058721365095,
+          "spread_mean": 0.838579308319917,
+          "spread_std": 0.15093122653417962,
+          "half_life": 2.6854351931992664,
           "test_stats": {
-            "t_stat": -3.028524911407369
+            "t_stat": -7.316630414938848
           },
-          "p_value": 0.10357983609154442
+          "p_value": 1.484319125856858e-09
         }
       ],
-      "selection_score": 2.073048468808879,
+      "selection_score": 2.1402000205380722,
+      "notes": ""
+    },
+    {
+      "id": "SOL-DOGE",
+      "assets": [
+        "SOL",
+        "DOGE"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "SOL": -0.0005951105214657309,
+            "DOGE": 1.0
+          },
+          "spread_mean": 0.06063736121979392,
+          "spread_std": 0.01065986928038614,
+          "half_life": 3.137163117248192,
+          "test_stats": {
+            "t_stat": -6.840396657648728
+          },
+          "p_value": 2.0474685557693774e-08
+        }
+      ],
+      "selection_score": 2.2311640680140914,
       "notes": ""
     },
     {
@@ -368,19 +134,305 @@
       "vectors": [
         {
           "weights": {
-            "SOL": -0.01461167356100931,
+            "SOL": -0.0072412419138223605,
             "DOT": 1.0
           },
-          "spread_mean": 0.18691702467684687,
-          "spread_std": 0.015238438645449572,
-          "half_life": 3.9778198930071538,
+          "spread_mean": 1.0971126541651697,
+          "spread_std": 0.1438338713345596,
+          "half_life": 3.8531408386402375,
           "test_stats": {
-            "t_stat": -3.013511706757379
+            "t_stat": -6.436782685657241
           },
-          "p_value": 0.10702860758242111
+          "p_value": 1.752346688377426e-07
         }
       ],
-      "selection_score": 2.078852835851933,
+      "selection_score": 2.0803047841428723,
+      "notes": ""
+    },
+    {
+      "id": "SOL-LINK",
+      "assets": [
+        "SOL",
+        "LINK"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "SOL": -0.029861399508778357,
+            "LINK": 1.0
+          },
+          "spread_mean": 9.208788689378066,
+          "spread_std": 0.48192624826555136,
+          "half_life": 2.452000819457103,
+          "test_stats": {
+            "t_stat": -6.332247577644705
+          },
+          "p_value": 3.014973271718735e-07
+        }
+      ],
+      "selection_score": 1.9644841815799434,
+      "notes": ""
+    },
+    {
+      "id": "SOL-ATOM",
+      "assets": [
+        "SOL",
+        "ATOM"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "SOL": -0.008921520721915906,
+            "ATOM": 1.0
+          },
+          "spread_mean": 1.0252871696617867,
+          "spread_std": 0.14873852665805995,
+          "half_life": 2.7036494918081937,
+          "test_stats": {
+            "t_stat": -6.303131467876432
+          },
+          "p_value": 3.5031828248172325e-07
+        }
+      ],
+      "selection_score": 2.140523721721461,
+      "notes": ""
+    },
+    {
+      "id": "SOL-MATIC",
+      "assets": [
+        "SOL",
+        "MATIC"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "SOL": -1.0249032211394511e-07,
+            "MATIC": 1.0
+          },
+          "spread_mean": 0.1984876019127447,
+          "spread_std": 1.0839938399891388e-05,
+          "half_life": 30.674711613220094,
+          "test_stats": {
+            "t_stat": -5.187729188329884
+          },
+          "p_value": 7.328565614528687e-05
+        }
+      ],
+      "selection_score": 2.031486801267643,
+      "notes": ""
+    },
+    {
+      "id": "LTC-DOT",
+      "assets": [
+        "LTC",
+        "DOT"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC": -0.06596951154174965,
+            "DOT": 1.0
+          },
+          "spread_mean": -3.294866972979674,
+          "spread_std": 0.03689062275457737,
+          "half_life": 2.4337514040683486,
+          "test_stats": {
+            "t_stat": -4.99986360546858
+          },
+          "p_value": 0.00016473772350929374
+        }
+      ],
+      "selection_score": 2.2554838124402963,
+      "notes": ""
+    },
+    {
+      "id": "SOL-LTC",
+      "assets": [
+        "SOL",
+        "LTC"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "SOL": -0.120547730600581,
+            "LTC": 1.0
+          },
+          "spread_mean": 65.14648213873159,
+          "spread_std": 2.060270212099971,
+          "half_life": 2.7067525301466304,
+          "test_stats": {
+            "t_stat": -4.647377212415813
+          },
+          "p_value": 0.0006940260015219693
+        }
+      ],
+      "selection_score": 1.5958524278145136,
+      "notes": ""
+    },
+    {
+      "id": "LTC-ADA",
+      "assets": [
+        "LTC",
+        "ADA"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC": -0.011341793564521805,
+            "ADA": 1.0
+          },
+          "spread_mean": -0.5357199032521598,
+          "spread_std": 0.007605868978433784,
+          "half_life": 2.9090803881029252,
+          "test_stats": {
+            "t_stat": -4.494018547131758
+          },
+          "p_value": 0.0012526831534591884
+        }
+      ],
+      "selection_score": 2.2470135024304083,
+      "notes": ""
+    },
+    {
+      "id": "LTC-AVAX",
+      "assets": [
+        "LTC",
+        "AVAX"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC": -0.30371954513000404,
+            "AVAX": 1.0
+          },
+          "spread_mean": -10.919263596776286,
+          "spread_std": 0.2242525081317501,
+          "half_life": 2.9018569920405373,
+          "test_stats": {
+            "t_stat": -4.490759988501174
+          },
+          "p_value": 0.0012681952388803196
+        }
+      ],
+      "selection_score": 2.0718449841823188,
+      "notes": ""
+    },
+    {
+      "id": "LINK-ADA",
+      "assets": [
+        "LINK",
+        "ADA"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LINK": -0.04876902803464008,
+            "ADA": 1.0
+          },
+          "spread_mean": -0.257756720515281,
+          "spread_std": 0.0056206839740027235,
+          "half_life": 2.815496352310098,
+          "test_stats": {
+            "t_stat": -3.7674505357299366
+          },
+          "p_value": 0.014971448760649248
+        }
+      ],
+      "selection_score": 2.2415283814586506,
+      "notes": ""
+    },
+    {
+      "id": "AVAX-ATOM",
+      "assets": [
+        "AVAX",
+        "ATOM"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "AVAX": -0.21703543622682908,
+            "ATOM": 1.0
+          },
+          "spread_mean": -0.769753431708331,
+          "spread_std": 0.05140038390976099,
+          "half_life": 5.04732974943916,
+          "test_stats": {
+            "t_stat": -3.489383321632258
+          },
+          "p_value": 0.03334820990332707
+        }
+      ],
+      "selection_score": 2.083126485878093,
+      "notes": ""
+    },
+    {
+      "id": "LTC-DOGE",
+      "assets": [
+        "LTC",
+        "DOGE"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC": -0.0048546176259578995,
+            "DOGE": 1.0
+          },
+          "spread_mean": -0.25431166581260944,
+          "spread_std": 0.003810504750133673,
+          "half_life": 4.984414942159025,
+          "test_stats": {
+            "t_stat": -3.4148556001258314
+          },
+          "p_value": 0.040727057534573174
+        }
+      ],
+      "selection_score": 2.1225776149213935,
+      "notes": ""
+    },
+    {
+      "id": "LTC-ATOM",
+      "assets": [
+        "LTC",
+        "ATOM"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "LTC": -0.0686014642573321,
+            "ATOM": 1.0
+          },
+          "spread_mean": -3.357335579691425,
+          "spread_std": 0.05535923870638739,
+          "half_life": 5.515666503640704,
+          "test_stats": {
+            "t_stat": -3.373059048212042
+          },
+          "p_value": 0.04543213854768947
+        }
+      ],
+      "selection_score": 2.0555887516150997,
       "notes": ""
     },
     {
@@ -394,45 +446,45 @@
       "vectors": [
         {
           "weights": {
-            "AVAX": -0.802390585240389,
+            "AVAX": -0.7022271822340238,
             "LINK": 1.0
           },
-          "spread_mean": 2.3153400821155645,
-          "spread_std": 0.10879565021104459,
-          "half_life": 1.8752962275823089,
+          "spread_mean": 3.532493847199972,
+          "spread_std": 0.1805735159722862,
+          "half_life": 5.277165640960265,
           "test_stats": {
-            "t_stat": -2.897533583345471
+            "t_stat": -3.2981102375454836
           },
-          "p_value": 0.1366133364000538
+          "p_value": 0.054994691803020086
         }
       ],
-      "selection_score": 2.113056355672802,
+      "selection_score": 1.9513588144115395,
       "notes": ""
     },
     {
-      "id": "LINK-DOGE",
+      "id": "AVAX-ADA",
       "assets": [
-        "LINK",
-        "DOGE"
+        "AVAX",
+        "ADA"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "LINK": -0.010007486093771362,
-            "DOGE": 1.0
+            "AVAX": -0.03492012342158656,
+            "ADA": 1.0
           },
-          "spread_mean": 0.012949742172730296,
-          "spread_std": 0.0013677473531874857,
-          "half_life": 17.751788470731594,
+          "spread_mean": -0.09471738635558748,
+          "spread_std": 0.00914530200815403,
+          "half_life": 6.184432309392797,
           "test_stats": {
-            "t_stat": -2.791615518023717
+            "t_stat": -3.0767305679002273
           },
-          "p_value": 0.1683670261756634
+          "p_value": 0.09307271951940799
         }
       ],
-      "selection_score": 1.8835953412616706,
+      "selection_score": 2.0370546993492527,
       "notes": ""
     }
   ],
