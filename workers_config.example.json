@@ -1,0 +1,71 @@
+{
+  "exchange": "kraken",
+  "workers": [
+    {
+      "name": "worker_conservative",
+      "api_key": "pYuYv6/b5/liYVppSx6uSpXcbojKaziP4mSpLak5g8L6z6z766Fs6MPI",
+      "secret_key": "L3gpMPou+ymkXbBbuN80UV1A+IfxQdX68VldpG60/JutGPJNw5RSfMIfd8N5wopdv+gEu8Q3qRL7maxU3BCsROOA",
+      "demo_mode": true,
+      "params": {
+        "mode": "trade-indefinite",
+        "cycle_interval": 30,
+        "health_interval": 15,
+        "lookback_bars": 500,
+        "days": 30,
+        "time_scale": "hour",
+        "max_groups": 10,
+        "p_threshold": 0.10,
+        "benchmark_refresh_days": 7,
+        "max_stream_symbols": 60,
+        "entry_zscore": 2.5,
+        "exit_zscore": 0.5,
+        "entry_staleness": 60.0,
+        "exit_staleness": 600.0,
+        "emergency_staleness": 1800.0,
+        "recalibrate_interval": 10,
+        "recalibrate_min_obs": 50,
+        "exclude_symbols": null
+      }
+    },
+    {
+      "name": "worker_aggressive",
+      "api_key": "b/RkVKzjfmjQy76eyL63v3oWavTzvKX5E9f9zFuQhP/BJuLZLPih9EAn",
+      "secret_key": "4X1AfLQPbRFR6iE078Ah0xjMCu+ZYnZZG+u0/GsGZnwsWykPGSAbR0nX+TTv6lvFq0pISTuDkzg3tZUeFc343XYe",
+      "demo_mode": true,
+      "params": {
+        "mode": "trade-indefinite",
+        "cycle_interval": 30,
+        "health_interval": 15,
+        "lookback_bars": 500,
+        "days": 30,
+        "time_scale": "hour",
+        "max_groups": 10,
+        "p_threshold": 0.10,
+        "benchmark_refresh_days": 7,
+        "max_stream_symbols": 60,
+        "entry_zscore": 1.5,
+        "exit_zscore": 0.3,
+        "entry_staleness": 60.0,
+        "exit_staleness": 600.0,
+        "emergency_staleness": 1800.0,
+        "recalibrate_interval": 10,
+        "recalibrate_min_obs": 50,
+        "exclude_symbols": null
+      }
+    },
+    {
+      "name": "worker_benchmark_only",
+      "api_key": "pYuYv6/b5/liYVppSx6uSpXcbojKaziP4mSpLak5g8L6z6z766Fs6MPI",
+      "secret_key": "L3gpMPou+ymkXbBbuN80UV1A+IfxQdX68VldpG60/JutGPJNw5RSfMIfd8N5wopdv+gEu8Q3qRL7maxU3BCsROOA",
+      "demo_mode": true,
+      "params": {
+        "mode": "compute-benchmarks",
+        "days": 30,
+        "time_scale": "hour",
+        "max_groups": 10,
+        "p_threshold": 0.10
+      }
+    }
+  ]
+}
+

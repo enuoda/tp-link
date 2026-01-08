@@ -124,7 +124,7 @@ class CCXTFuturesTrader:
         testnet: bool = True,
         default_leverage: int = 1,
         margin_mode: str = "cross",
-        max_reconnect_attempts: int = 5,
+        max_reconnect_attempts: int = 10,
         reconnect_delay_base: float = 1.0,
         heartbeat_interval: float = 30.0,
         heartbeat_timeout_multiplier: float = 3.0,
@@ -211,6 +211,9 @@ class CCXTFuturesTrader:
         self._last_any_data_received: Optional[datetime] = None
         self._heartbeat_thread: Optional[threading.Thread] = None
         self._heartbeat_stop = threading.Event()
+        
+        # ----- reconnection exhaustion tracking -----
+        self._reconnection_exhausted = False
         
         # ----- debug tracking -----
         self._debug_streaming = True
@@ -956,13 +959,19 @@ class CCXTFuturesTrader:
         self._connection_healthy.clear()
         
         def run_stream_with_reconnect() -> None:
+            first_start = True
             while not self._stop_streaming.is_set():
                 try:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     
                     self._streaming_active = True
-                    self._reconnect_attempts = 0
+                    
+                    # Only reset attempts on first start, not on reconnects
+                    if first_start:
+                        self._reconnect_attempts = 0
+                        self._reconnection_exhausted = False  # Reset exhaustion flag
+                        first_start = False
                     
                     print(f"✅ Started real-time streaming for {symbols}", flush=True)
                     print(f"📡 Subscribing to data types: {data_types}", flush=True)
@@ -983,16 +992,31 @@ class CCXTFuturesTrader:
                     self._reconnect_attempts += 1
                     if self._reconnect_attempts > self._max_reconnect_attempts:
                         print(f"❌ Max reconnection attempts ({self._max_reconnect_attempts}) exceeded. Giving up.", flush=True)
+                        self._reconnection_exhausted = True
                         break
                     
                     # ----- exponential backoff -----
                     delay = self._reconnect_delay_base * (2 ** (self._reconnect_attempts - 1))
                     delay = min(delay, 60.0)
-                    print(f"⚠️ Stream disconnected: {e}. Reconnecting in {delay:.1f}s (attempt {self._reconnect_attempts}/{self._max_reconnect_attempts})", flush=True)
+                    print(f"⚠️ Stream disconnected: {e}. Reconnecting in {delay:.1f}s "
+                          f"(attempt {self._reconnect_attempts}/{self._max_reconnect_attempts})", flush=True)
                     
                     # ----- wait before reconnecting (interruptible) -----
                     if self._stop_streaming.wait(timeout=delay):
                         break
+                    
+                    # ----- create fresh WebSocket client on reconnect -----
+                    try:
+                        print("🔄 Creating fresh WebSocket client for reconnect...", flush=True)
+                        self.ws_exchange = self._create_ws_client()
+                        if self.testnet or DEMO_MODE:
+                            try:
+                                self.ws_exchange.set_sandbox_mode(True)
+                            except Exception:
+                                pass
+                        print("✅ Fresh WebSocket client created", flush=True)
+                    except Exception as ws_err:
+                        print(f"⚠️ Could not recreate WebSocket client: {ws_err}", flush=True)
                 
                 finally:
                     try:
@@ -1069,6 +1093,11 @@ class CCXTFuturesTrader:
                     self._last_any_data_received = now
                     self._connection_healthy.set()
                     
+                    # Reset reconnect counter on successful data after reconnection
+                    if self._reconnect_attempts > 0:
+                        print(f"✅ Data flowing after reconnect - resetting attempt counter", flush=True)
+                        self._reconnect_attempts = 0
+                    
         except asyncio.CancelledError:
             pass
         except Exception as e:
@@ -1109,6 +1138,11 @@ class CCXTFuturesTrader:
                         self._last_data_received[symbol] = now
                         self._last_any_data_received = now
                         self._connection_healthy.set()
+                        
+                        # Reset reconnect counter on successful data after reconnection
+                        if self._reconnect_attempts > 0:
+                            print(f"✅ Data flowing after reconnect - resetting attempt counter", flush=True)
+                            self._reconnect_attempts = 0
                         
         except asyncio.CancelledError:
             pass
@@ -1214,7 +1248,8 @@ class CCXTFuturesTrader:
         Trigger a reconnection due to heartbeat timeout.
         
         This attempts to gracefully restart the WebSocket connection
-        when a zombie connection is detected.
+        when a zombie connection is detected. Creates a fresh WebSocket
+        client to avoid session-related issues with exchanges like Kraken.
         """
         if not self._streaming_active:
             return
@@ -1227,7 +1262,9 @@ class CCXTFuturesTrader:
             print("⚠️ Cannot reconnect - no symbols configured")
             return
         
-        print(f"🔄 Heartbeat reconnect: Restarting stream for {len(symbols)} symbols...")
+        current_attempt = self._reconnect_attempts + 1
+        print(f"🔄 Heartbeat reconnect attempt #{current_attempt}: "
+              f"Restarting stream for {len(symbols)} symbols...")
         
         try:
             self._streaming_active = False
@@ -1236,20 +1273,50 @@ class CCXTFuturesTrader:
             if self._stream_thread is not None and self._stream_thread.is_alive():
                 self._stream_thread.join(timeout=5.0)
             
+            # ----- create fresh WebSocket client -----
+            # Critical for exchanges like Kraken that may reject reconnections
+            # from the same session after timeout
+            try:
+                print("🔄 Creating fresh WebSocket client...")
+                self.ws_exchange = self._create_ws_client()
+                if self.testnet or DEMO_MODE:
+                    try:
+                        self.ws_exchange.set_sandbox_mode(True)
+                    except Exception:
+                        pass
+                print("✅ Fresh WebSocket client created")
+            except Exception as e:
+                print(f"⚠️ Could not recreate WebSocket client: {e}")
+            
             time.sleep(2.0)
             
             # ----- restart streaming -----
             self._stop_streaming.clear()
-            self._reconnect_attempts += 1
             
-            # ----- start streaming again -----
+            # Start streaming again (don't increment counter here - wait for confirmation)
             self.start_real_time_streaming(symbols, data_types)
             
-            print(f"✅ Heartbeat reconnect successful")
+            # Wait briefly for data to confirm success
+            time.sleep(5.0)
+            
+            with self._stream_lock:
+                last_data = self._last_any_data_received
+            
+            if last_data is not None:
+                age = (datetime.now(ZoneInfo("UTC")) - last_data).total_seconds()
+                if age < 15:  # Data received within last 15 seconds
+                    print(f"✅ Heartbeat reconnect successful - data flowing (age: {age:.1f}s)")
+                    self._reconnect_attempts = 0  # Reset counter on success!
+                    self._connection_healthy.set()
+                    return
+            
+            # No data yet - count this as a failed attempt
+            self._reconnect_attempts += 1
+            print(f"⚠️ Heartbeat reconnect: no data yet after attempt #{current_attempt}")
             
         except Exception as e:
-            print(f"❌ Heartbeat reconnect failed: {e}")
             self._reconnect_attempts += 1
+            print(f"❌ Heartbeat reconnect failed (attempt #{current_attempt}): {e}")
 
 
     # ==================================================
@@ -1364,6 +1431,18 @@ class CCXTFuturesTrader:
     def is_streaming_active(self) -> bool:
         """Check if real-time streaming is active"""
         return self._streaming_active
+
+    def is_reconnection_exhausted(self) -> bool:
+        """
+        Check if all reconnection attempts have been exhausted.
+        
+        When True, the streaming connection has failed and cannot recover.
+        This should trigger an emergency exit in the main trading loop.
+        
+        Returns:
+            bool: True if max reconnection attempts exceeded
+        """
+        return self._reconnection_exhausted
 
 
     def wait_for_data(

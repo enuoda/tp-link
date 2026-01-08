@@ -139,6 +139,84 @@ def _log_health_status(trader: TradingPartner, session_start: datetime, cycle_co
     logger.info("=" * 60)
 
 
+def _check_global_emergency(
+    trader: TradingPartner,
+    stale_threshold_secs: float = 300.0,
+    stale_symbol_ratio: float = 0.7,
+    connection_unhealthy_cycles: int = 10,
+    unhealthy_streak: int = 0,
+) -> tuple:
+    """
+    Check if we should perform a global emergency exit.
+    
+    Triggers emergency if:
+    1. Connection has been unhealthy for N consecutive cycles, OR
+    2. More than X% of symbols are stale for extended period
+    
+    This is a safety mechanism to close all positions and terminate
+    when the data feed has completely failed (e.g., exchange WebSocket
+    session limits, network issues).
+    
+    Args:
+        trader: Active TradingPartner instance
+        stale_threshold_secs: Seconds to consider data stale (default: 300)
+        stale_symbol_ratio: Ratio of stale symbols to trigger exit (default: 0.7)
+        connection_unhealthy_cycles: Consecutive unhealthy cycles to trigger (default: 10)
+        unhealthy_streak: Number of consecutive unhealthy cycles so far
+        
+    Returns:
+        tuple: (should_exit: bool, updated_unhealthy_streak: int, reason: str)
+        
+    Example:
+        >>> should_exit, streak, reason = _check_global_emergency(trader, unhealthy_streak=5)
+        >>> if should_exit:
+        ...     close_all_and_terminate(reason)
+    """
+    # ----- IMMEDIATE CHECK: Reconnection exhausted -----
+    # If all reconnection attempts have failed, trigger immediate emergency exit
+    if trader.crypto_trader.is_reconnection_exhausted():
+        reason = "All reconnection attempts exhausted - streaming cannot recover"
+        logger.error(f"🚨 GLOBAL EMERGENCY: {reason}")
+        return True, unhealthy_streak, reason
+    
+    health = trader.crypto_trader.get_connection_health(stale_threshold_secs)
+    
+    # Check overall connection health
+    connection_healthy = health.get('connection_healthy', True)
+    streaming_active = health.get('streaming_active', True)
+    
+    if not connection_healthy or not streaming_active:
+        unhealthy_streak += 1
+        logger.warning(
+            f"⚠️ Connection unhealthy for {unhealthy_streak} consecutive cycles "
+            f"(streaming_active={streaming_active}, connection_healthy={connection_healthy})"
+        )
+    else:
+        if unhealthy_streak > 0:
+            logger.info(f"✅ Connection recovered after {unhealthy_streak} unhealthy cycles")
+        unhealthy_streak = 0  # Reset streak on healthy connection
+    
+    # Trigger exit if connection unhealthy for too many cycles
+    if unhealthy_streak >= connection_unhealthy_cycles:
+        reason = f"Connection unhealthy for {unhealthy_streak} consecutive cycles"
+        logger.error(f"🚨 GLOBAL EMERGENCY: {reason}")
+        return True, unhealthy_streak, reason
+    
+    # Check ratio of stale symbols
+    symbol_health = health.get('symbols', {})
+    if symbol_health:
+        stale_count = sum(1 for s in symbol_health.values() if not s.get('healthy', True))
+        total_count = len(symbol_health)
+        stale_ratio = stale_count / total_count if total_count > 0 else 0
+        
+        if stale_ratio >= stale_symbol_ratio:
+            reason = f"{stale_count}/{total_count} symbols stale ({stale_ratio:.0%} >= {stale_symbol_ratio:.0%})"
+            logger.error(f"🚨 GLOBAL EMERGENCY: {reason}")
+            return True, unhealthy_streak, reason
+    
+    return False, unhealthy_streak, ""
+
+
 def _log_final_summary(trader: TradingPartner, session_start: datetime, cycle_count: int) -> None:
     """
     Log final summary when trading session ends.
@@ -511,11 +589,35 @@ def run_indefinitely(
     last_health_log = datetime.now()
     last_benchmark_check = datetime.now()
     last_recalibration = datetime.now()
+    unhealthy_streak = 0  # Track consecutive unhealthy connection cycles
+    
+    # Emergency exit parameters
+    emergency_stale_threshold = entry_staleness * 2  # 2x entry staleness
+    emergency_symbol_ratio = 0.7  # 70% of symbols must be stale
+    emergency_unhealthy_cycles = 5  # 5 cycles × cycle_seconds = 2.5 min unhealthy duration
     
     try:
         while not shutdown_requested:
             cycle_count += 1
             cycle_start = datetime.now()
+            
+            # ===== GLOBAL EMERGENCY CHECK =====
+            should_emergency_exit, unhealthy_streak, emergency_reason = _check_global_emergency(
+                trader=trader,
+                stale_threshold_secs=emergency_stale_threshold,
+                stale_symbol_ratio=emergency_symbol_ratio,
+                connection_unhealthy_cycles=emergency_unhealthy_cycles,
+                unhealthy_streak=unhealthy_streak,
+            )
+            
+            if should_emergency_exit:
+                logger.error("=" * 60)
+                logger.error("🚨 GLOBAL EMERGENCY EXIT TRIGGERED")
+                logger.error(f"Reason: {emergency_reason}")
+                logger.error("Closing all positions and terminating...")
+                logger.error("=" * 60)
+                shutdown_requested = True
+                break
             
             # ===== trading cycle =====
             try:
