@@ -43,6 +43,7 @@ except Exception as e:
 # TRADING BOT DEFAULT PARAMETERS
 # ==================================================    
     
+    
 MAX_SPREAD_NOTIONAL = 200.0 # maxmimum $ amount to bet on a spread position
 MIN_SPREAD_NOTIONAL = 20.0 # minimum $ amount to bet on a spread position
 MAX_SPREAD_POSITIONS = 10 # maximum number of allowed spread positions open at once
