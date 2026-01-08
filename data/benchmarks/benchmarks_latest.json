@@ -1,6 +1,6 @@
 {
   "version": "1.3",
-  "computed_at_utc": "2026-01-08T18:56:36.592504+00:00",
+  "computed_at_utc": "2026-01-08T20:22:32.595865+00:00",
   "computed_on_exchange": "kraken",
   "computed_on_testnet": true,
   "universe": [
@@ -16,59 +16,111 @@
     "DOGE",
     "ADA"
   ],
-  "lookback_days": 1,
+  "lookback_days": 2,
   "p_threshold": 0.2,
   "cointegration_groups": [
     {
-      "id": "SOL-BCH",
+      "id": "SOL-LINK",
       "assets": [
         "SOL",
-        "BCH"
+        "LINK"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "SOL": -1.5315653389401698,
-            "BCH": 1.0
+            "SOL": -0.08246545694614954,
+            "LINK": 1.0
           },
-          "spread_mean": 427.5975910414293,
-          "spread_std": 9.504564329410856,
-          "half_life": 12.298666640538274,
+          "spread_mean": 2.31751290728222,
+          "spread_std": 0.04500356913514146,
+          "half_life": 2.838151478980851,
           "test_stats": {
-            "t_stat": -4.468428405287191
+            "t_stat": -4.0659097564175894
           },
-          "p_value": 0.0013794220494605107
+          "p_value": 0.005770916265165129
         }
       ],
-      "selection_score": 1.169012799833358,
+      "selection_score": 2.211705702322468,
       "notes": ""
     },
     {
-      "id": "XRP-DOGE",
+      "id": "LTC-DOT",
       "assets": [
-        "XRP",
-        "DOGE"
+        "LTC",
+        "DOT"
       ],
       "method": "EngleGranger",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "XRP": -0.06096907055114505,
-            "DOGE": 1.0
+            "LTC": -0.0675481852627169,
+            "DOT": 1.0
           },
-          "spread_mean": 0.014964044569826123,
-          "spread_std": 0.0004312934195102743,
-          "half_life": 15.968400503447214,
+          "spread_mean": -3.4376674856412546,
+          "spread_std": 0.008489906899947585,
+          "half_life": 11.785457025171436,
           "test_stats": {
-            "t_stat": -3.1108426379148413
+            "t_stat": -3.897691200204821
           },
-          "p_value": 0.08614578242205767
+          "p_value": 0.009992394529193765
         }
       ],
-      "selection_score": 1.9723561839430768,
+      "selection_score": 2.0598030345406624,
+      "notes": ""
+    },
+    {
+      "id": "DOGE-ADA",
+      "assets": [
+        "DOGE",
+        "ADA"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "DOGE": -2.461497178378304,
+            "ADA": 1.0
+          },
+          "spread_mean": 0.04828115459587075,
+          "spread_std": 0.001112841477350786,
+          "half_life": 6.037468962755388,
+          "test_stats": {
+            "t_stat": -3.5956520335961923
+          },
+          "p_value": 0.024806722500834395
+        }
+      ],
+      "selection_score": 2.1161782144872885,
+      "notes": ""
+    },
+    {
+      "id": "AVAX-ATOM",
+      "assets": [
+        "AVAX",
+        "ATOM"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "AVAX": -0.34315356185675505,
+            "ATOM": 1.0
+          },
+          "spread_mean": -2.5377677863416395,
+          "spread_std": 0.027863260949417563,
+          "half_life": 15.25995021785553,
+          "test_stats": {
+            "t_stat": -3.119181699835694
+          },
+          "p_value": 0.08451480228090769
+        }
+      ],
+      "selection_score": 1.9498780558195525,
       "notes": ""
     },
     {
@@ -82,19 +134,45 @@
       "vectors": [
         {
           "weights": {
-            "AVAX": -0.664668356056831,
+            "AVAX": -1.0316799655643267,
             "LINK": 1.0
           },
-          "spread_mean": 4.064851869724476,
-          "spread_std": 0.052528192463236936,
-          "half_life": 19.36913652284834,
+          "spread_mean": -1.2167456022149765,
+          "spread_std": 0.06578754009261993,
+          "half_life": 11.39758557056022,
           "test_stats": {
-            "t_stat": -3.0651147193817296
+            "t_stat": -3.041048163304206
           },
-          "p_value": 0.09552662758375213
+          "p_value": 0.10076774144814482
         }
       ],
-      "selection_score": 1.9036605706249392,
+      "selection_score": 1.9181664326707484,
+      "notes": ""
+    },
+    {
+      "id": "AVAX-DOT",
+      "assets": [
+        "AVAX",
+        "DOT"
+      ],
+      "method": "EngleGranger",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "AVAX": -0.15344324278463412,
+            "DOT": 1.0
+          },
+          "spread_mean": -0.027525852395467565,
+          "spread_std": 0.01878570558871158,
+          "half_life": 30.45112340432376,
+          "test_stats": {
+            "t_stat": -2.9440910522198838
+          },
+          "p_value": 0.12410033971480017
+        }
+      ],
+      "selection_score": 1.889255716791789,
       "notes": ""
     }
   ],

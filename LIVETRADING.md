@@ -325,6 +325,12 @@ The system auto-reconnects on zombie connections. If persistent, check your netw
 
 Fees associated to (live) trading the different crypyocurrencies available via this exchange can be found (here)[https://support.kraken.com/articles/206161568-what-are-the-fees-opening-and-rollover-for-trading-using-margin-?_gl=1*1w9o20y*_gcl_au*NTI5MDc3MjY0LjE3Njc0MDkwNzAuMTI4MTE1MTM2LjE3Njc0MTAyNzUuMTc2NzQxMDI3NQ..*_ga*MzUwNTQ4NzgxLjE3Njc0MDkwNzA.*_ga_5MVYWBPCBE*czE3Njc4OTg3NTYkbzYkZzEkdDE3Njc4OTg5NTQkajYwJGwwJGgw]. These fees **do not apply** to paper trading on (demo-futures.kraken.com)[demo-futures.kraken.com]. Fees for trading on Kraken generally can be found (here)[https://www.kraken.com/features/fee-schedule].
 
+Also, see (Last price vs. Mark Price)[https://www.kraken.com/learn/last-price-mark-price-futures] for understanding the difference between the *last price* of an asset (literally, the last price of the instrument in question on the exchange) and the *mark price* (represents an estimate of the asset's value at any time. It is purely theoretical and used to determine margin requirements, liquidations, and to value open positions. Importantly, unrealized gains in futures contracts are calculated by the difference between the mark price and the entry price.).
+
+From the Kraken support page listed above:
+- The benefit of using the *last price* when submitting market orders is that the execution price will be closer to the expected transaction price, depending on liquidity. 
+- Using the *mark price* for execution may be advantageous when trading on a platform with inferior liquidity; here, it can protect you from anomalous mvoes in a thinly-traded market since the last price has no impact on execution and the market price should remain in line with the more reliable price index.
+
 ## License
 
 MIT License - See LICENSE file for details.

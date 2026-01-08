@@ -1108,7 +1108,12 @@ class TradingPartner:
 
 
     def _log_spread_positions(self) -> None:
-        """Log summary of open spread positions with accurate per-spread P&L."""
+        """Log summary of open spread positions with accurate per-spread P&L.
+        
+        Shows P&L calculated using both last price and mark price to help
+        reconcile differences with exchange-reported P&L. Kraken (and most
+        exchanges) use mark price for unrealized P&L calculations.
+        """
         if not self._spread_positions:
             return
         
@@ -1122,6 +1127,12 @@ class TradingPartner:
             logger.warning(f"Could not fetch exchange positions: {e}")
             exchange_positions = {}
         
+        # Build mark price map from exchange positions
+        mark_prices: Dict[str, float] = {}
+        for symbol, ep in exchange_positions.items():
+            if ep.mark_price and ep.mark_price > 0:
+                mark_prices[symbol] = ep.mark_price
+        
         # Calculate total local quantity per symbol to properly attribute exchange P&L
         # This avoids double-counting when multiple spreads share a symbol
         total_local_qty_by_symbol: Dict[str, float] = {}
@@ -1129,34 +1140,44 @@ class TradingPartner:
             for asset, qty in pos.quantities.items():
                 total_local_qty_by_symbol[asset] = total_local_qty_by_symbol.get(asset, 0) + qty
         
-        total_pnl = 0.0
+        total_pnl_last = 0.0
+        total_pnl_mark = 0.0
+        
         for group_id, pos in self._spread_positions.items():
             z_str = f"{pos.current_zscore:.2f}" if pos.current_zscore == pos.current_zscore else "N/A"
             
-            # Calculate P&L for this spread using local calculation (most accurate per-spread)
-            # This avoids the double-counting issue with exchange P&L when symbols are shared
-            spread_pnl = 0.0
+            # Calculate P&L using both last price and mark price
+            spread_pnl_last = 0.0
+            spread_pnl_mark = 0.0
+            
             for asset in pos.assets:
                 qty = pos.quantities.get(asset, 0)
                 entry = pos.entry_prices.get(asset, 0)
-                current = pos.current_prices.get(asset, entry)
-                leg_pnl = qty * (current - entry)
-                spread_pnl += leg_pnl
+                last_price = pos.current_prices.get(asset, entry)
+                mark_price = mark_prices.get(asset, last_price)  # Fallback to last if no mark
+                
+                spread_pnl_last += qty * (last_price - entry)
+                spread_pnl_mark += qty * (mark_price - entry)
             
-            total_pnl += spread_pnl
+            total_pnl_last += spread_pnl_last
+            total_pnl_mark += spread_pnl_mark
             
+            # Show both P&L calculations
             logger.info(
                 f"  {group_id}: {pos.side} | Entry z={pos.entry_zscore:.2f} | "
-                f"Current z={z_str} | P&L=${spread_pnl:+.2f}"
+                f"Current z={z_str}"
+            )
+            logger.info(
+                f"    └─ P&L (last): ${spread_pnl_last:+.2f} | P&L (mark): ${spread_pnl_mark:+.2f}"
             )
             
-            # Log individual legs with details
+            # Log individual legs with price comparison
             for asset in pos.assets:
                 qty = pos.quantities.get(asset, 0)
                 side = "LONG" if qty > 0 else "SHORT"
                 entry = pos.entry_prices.get(asset, 0)
-                current = pos.current_prices.get(asset, entry)
-                leg_pnl = qty * (current - entry)
+                last_price = pos.current_prices.get(asset, entry)
+                mark_price = mark_prices.get(asset, last_price)
                 
                 # Show exchange position reconciliation info
                 if asset in exchange_positions:
@@ -1165,22 +1186,33 @@ class TradingPartner:
                     exchange_qty = ep.contracts if ep.side == 'long' else -ep.contracts
                     match_indicator = "✓" if abs(local_total - exchange_qty) < 0.0001 else "⚠️"
                     logger.info(
-                        f"    └─ {asset}: {side} {abs(qty):.6f} @ ${entry:.2f} → ${current:.2f} "
-                        f"(P&L: ${leg_pnl:+.2f}) {match_indicator}"
+                        f"    {asset:<12s}: {side:<5s} {abs(qty):.2f} @ entry ${entry:.2f} | "
+                        f"last ${last_price:<5.2f} | mark ${mark_price:<5.2f} {match_indicator}"
                     )
                 else:
                     logger.info(
-                        f"    └─ {asset}: {side} {abs(qty):.6f} @ ${entry:.2f} → ${current:.2f} "
-                        f"(P&L: ${leg_pnl:+.2f}) ⚠️ NOT ON EXCHANGE"
+                        f"    {asset:<12s}: {side:<5s} {abs(qty):.2f} @ entry ${entry:.2f} | "
+                        f"last ${last_price:<5.2f} ⚠️ NOT ON EXCHANGE"
                     )
         
-        logger.info(f"  TOTAL SPREAD P&L: ${total_pnl:+.2f}")
+        logger.info("-" * 40)
+        logger.info(f"\tTOTAL P&L (last price):  ${total_pnl_last:+.2f}")
+        logger.info(f"\tTOTAL P&L (mark price):  ${total_pnl_mark:+.2f}")
         
         # Show exchange total unrealized P&L for comparison
         if exchange_positions:
             exchange_total_pnl = sum(p.unrealized_pnl for p in exchange_positions.values())
-            logger.info(f"  EXCHANGE TOTAL P&L: ${exchange_total_pnl:+.2f}")
-            if abs(total_pnl - exchange_total_pnl) > 0.01:
-                logger.info(f"  ℹ️ Difference may be due to mark price vs last price, fees, or funding")
+            logger.info(f"\tEXCHANGE TOTAL P&L:      ${exchange_total_pnl:+.2f}")
+            
+            # Break down the difference
+            last_vs_mark_diff = total_pnl_last - total_pnl_mark
+            mark_vs_exchange_diff = total_pnl_mark - exchange_total_pnl
+            
+            if abs(last_vs_mark_diff) > 0.01 or abs(mark_vs_exchange_diff) > 0.01:
+                logger.info(f"\t--- Reconciliation ---")
+                if abs(last_vs_mark_diff) > 0.01:
+                    logger.info(f"\t  Last vs Mark price diff: ${last_vs_mark_diff:+.2f}")
+                if abs(mark_vs_exchange_diff) > 0.01:
+                    logger.info(f"\t  Fees/funding (est.):     ${mark_vs_exchange_diff:+.2f}")
         
         logger.info("-" * 60)
