@@ -42,7 +42,7 @@ from .rolling_buffer import RollingCointegrationBuffer
 MOMENTUM_BUY_THRESHOLD = 0.02
 MOMENTUM_SELL_THRESHOLD = -0.02
 MOMENTUM_MIN_DATA_POINTS = 10
-MIN_LEG_NOTIONAL = 15.0  # minimum $ per spread leg to ensure order meets exchange minimums
+MIN_LEG_NOTIONAL = 10.0  # minimum $ per spread leg to ensure order meets exchange minimums
 
 # ==================================================
 # LOGGING

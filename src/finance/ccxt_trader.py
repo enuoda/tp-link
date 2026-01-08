@@ -704,7 +704,8 @@ class CCXTFuturesTrader:
             qty = self.exchange.amount_to_precision(symbol, qty)
             
             # Check minimum order size before submitting
-            min_amount = float(market.get('limits', {}).get('amount', {}).get('min', 0))
+            min_amount_raw = market.get('limits', {}).get('amount', {}).get('min')
+            min_amount = float(min_amount_raw) if min_amount_raw is not None else 0.0
             if float(qty) <= min_amount:
                 print(f"❌ Order size {qty} at or below minimum {min_amount} for {symbol}", flush=True)
                 return None
@@ -779,7 +780,8 @@ class CCXTFuturesTrader:
             qty = self.exchange.amount_to_precision(symbol, qty)
             
             # Check minimum order size before submitting
-            min_amount = float(market.get('limits', {}).get('amount', {}).get('min', 0))
+            min_amount_raw = market.get('limits', {}).get('amount', {}).get('min')
+            min_amount = float(min_amount_raw) if min_amount_raw is not None else 0.0
             if float(qty) <= min_amount:
                 print(f"❌ Order size {qty} at or below minimum {min_amount} for {symbol}", flush=True)
                 return None
