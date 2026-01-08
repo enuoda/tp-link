@@ -703,6 +703,11 @@ class CCXTFuturesTrader:
             market = self.exchange.market(symbol)
             qty = self.exchange.amount_to_precision(symbol, qty)
             
+            # Handle case where precision conversion fails
+            if qty is None:
+                print(f"❌ Failed to convert quantity to valid precision for {symbol}", flush=True)
+                return None
+            
             # Check minimum order size before submitting
             min_amount_raw = market.get('limits', {}).get('amount', {}).get('min')
             min_amount = float(min_amount_raw) if min_amount_raw is not None else 0.0
@@ -778,6 +783,11 @@ class CCXTFuturesTrader:
             # Round to valid precision
             market = self.exchange.market(symbol)
             qty = self.exchange.amount_to_precision(symbol, qty)
+            
+            # Handle case where precision conversion fails
+            if qty is None:
+                print(f"❌ Failed to convert quantity to valid precision for {symbol}", flush=True)
+                return None
             
             # Check minimum order size before submitting
             min_amount_raw = market.get('limits', {}).get('amount', {}).get('min')
