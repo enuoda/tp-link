@@ -321,6 +321,10 @@ Normal for low-liquidity assets. The system uses staleness thresholds to handle 
 ### Heartbeat timeout / reconnection
 The system auto-reconnects on zombie connections. If persistent, check your network connection.
 
+## Kraken Reference
+
+Fees associated to (live) trading the different crypyocurrencies available via this exchange can be found (here)[https://support.kraken.com/articles/206161568-what-are-the-fees-opening-and-rollover-for-trading-using-margin-?_gl=1*1w9o20y*_gcl_au*NTI5MDc3MjY0LjE3Njc0MDkwNzAuMTI4MTE1MTM2LjE3Njc0MTAyNzUuMTc2NzQxMDI3NQ..*_ga*MzUwNTQ4NzgxLjE3Njc0MDkwNzA.*_ga_5MVYWBPCBE*czE3Njc4OTg3NTYkbzYkZzEkdDE3Njc4OTg5NTQkajYwJGwwJGgw]. These fees **do not apply** to paper trading on (demo-futures.kraken.com)[demo-futures.kraken.com]. Fees for trading on Kraken generally can be found (here)[https://www.kraken.com/features/fee-schedule].
+
 ## License
 
 MIT License - See LICENSE file for details.

@@ -233,7 +233,8 @@ def _pairs_payload(
     pairs_processed = 0
     pairs_skipped_data = 0
     pairs_skipped_error = 0
-    pairs_skipped_hedge_ratio = 0
+    pairs_skipped_extreme_hedge = 0
+    pairs_skipped_inverse_corr = 0
     
     for (a_base, b_base), (hedge_ratio, std_spread) in mapping.items():
         a = base_to_full.get(a_base, a_base)
@@ -247,7 +248,18 @@ def _pairs_payload(
                 f"\t{a}/{b}: Skipped - hedge ratio {hedge_ratio:.4f} outside tradeable range "
                 f"[{MIN_HEDGE_RATIO}, {MAX_HEDGE_RATIO}]"
             )
-            pairs_skipped_hedge_ratio += 1
+            pairs_skipped_extreme_hedge += 1
+            continue
+        
+        # Filter pairs with negative hedge ratio (inverse correlation)
+        # These produce same-sign weights, which aren't suitable for market-neutral spread trading
+        # A proper pairs trade requires one long and one short position
+        if hedge_ratio < 0:
+            logger.debug(
+                f"\t{a}/{b}: Skipped - negative hedge ratio {hedge_ratio:.4f} "
+                f"(inverse correlation not suitable for pairs trading)"
+            )
+            pairs_skipped_inverse_corr += 1
             continue
         
         try:
@@ -302,7 +314,8 @@ def _pairs_payload(
 
     logger.info(f"\tProcessed: {pairs_processed}, Groups created: {len(groups)}")
     logger.info(f"\tSkipped (insufficient data): {pairs_skipped_data}, Skipped (errors): {pairs_skipped_error}")
-    logger.info(f"\tSkipped (extreme hedge ratio): {pairs_skipped_hedge_ratio}")
+    logger.info(f"\tSkipped (extreme hedge ratio): {pairs_skipped_extreme_hedge}")
+    logger.info(f"\tSkipped (inverse correlation): {pairs_skipped_inverse_corr}")
 
     groups.sort(key=lambda g: g.selection_score, reverse=True)
     return groups[:max_groups]

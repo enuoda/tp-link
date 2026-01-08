@@ -253,6 +253,106 @@ class TradingPartner:
         self.crypto_trader.print_account_summary()
 
 
+    def reconcile_positions(self) -> Dict[str, Dict]:
+        """
+        Compare local spread positions with actual exchange positions.
+        
+        This helps diagnose discrepancies between what your program thinks
+        is open vs what the exchange actually shows. Essential for debugging
+        order execution issues.
+        
+        Returns:
+            Dict mapping symbol to reconciliation status with 'local_qty',
+            'exchange_qty', 'match', and 'discrepancy' fields
+        
+        Example:
+            >>> reconciliation = trader.reconcile_positions()
+            >>> for symbol, status in reconciliation.items():
+            ...     if not status['match']:
+            ...         print(f"Mismatch: {symbol} local={status['local_qty']} exchange={status['exchange_qty']}")
+        """
+        # Aggregate local positions by symbol
+        local_by_symbol: Dict[str, float] = {}
+        local_spreads_by_symbol: Dict[str, List[str]] = {}
+        
+        for group_id, pos in self._spread_positions.items():
+            for asset, qty in pos.quantities.items():
+                local_by_symbol[asset] = local_by_symbol.get(asset, 0) + qty
+                if asset not in local_spreads_by_symbol:
+                    local_spreads_by_symbol[asset] = []
+                local_spreads_by_symbol[asset].append(group_id)
+        
+        # Fetch exchange positions
+        try:
+            exchange_positions = {p.symbol: p for p in self.crypto_trader.get_all_positions()}
+        except Exception as e:
+            logger.error(f"Failed to fetch exchange positions for reconciliation: {e}")
+            return {}
+        
+        # Build reconciliation report
+        all_symbols = set(local_by_symbol.keys()) | set(exchange_positions.keys())
+        reconciliation: Dict[str, Dict] = {}
+        
+        logger.info("\n🔍 POSITION RECONCILIATION:")
+        logger.info("-" * 70)
+        
+        has_mismatch = False
+        for symbol in sorted(all_symbols):
+            local_qty = local_by_symbol.get(symbol, 0)
+            
+            exchange_pos = exchange_positions.get(symbol)
+            if exchange_pos:
+                exchange_qty = exchange_pos.contracts
+                if exchange_pos.side == 'short':
+                    exchange_qty = -exchange_qty
+            else:
+                exchange_qty = 0.0
+            
+            discrepancy = local_qty - exchange_qty
+            match = abs(discrepancy) < 0.0001
+            
+            reconciliation[symbol] = {
+                'local_qty': local_qty,
+                'exchange_qty': exchange_qty,
+                'match': match,
+                'discrepancy': discrepancy,
+                'spreads': local_spreads_by_symbol.get(symbol, []),
+            }
+            
+            if match:
+                status_icon = "✅"
+            else:
+                status_icon = "❌"
+                has_mismatch = True
+            
+            local_side = "LONG" if local_qty > 0 else ("SHORT" if local_qty < 0 else "FLAT")
+            exchange_side = "LONG" if exchange_qty > 0 else ("SHORT" if exchange_qty < 0 else "FLAT")
+            
+            logger.info(
+                f"  {status_icon} {symbol}: "
+                f"Local={local_side} {abs(local_qty):.6f} | "
+                f"Exchange={exchange_side} {abs(exchange_qty):.6f} | "
+                f"Diff={discrepancy:+.6f}"
+            )
+            
+            if not match and local_spreads_by_symbol.get(symbol):
+                logger.info(f"      └─ Involved in spreads: {local_spreads_by_symbol[symbol]}")
+        
+        # Check for exchange positions not tracked locally
+        untracked_on_exchange = set(exchange_positions.keys()) - set(local_by_symbol.keys())
+        if untracked_on_exchange:
+            logger.warning(f"  ⚠️ Exchange has positions not tracked locally: {list(untracked_on_exchange)}")
+        
+        if has_mismatch:
+            logger.warning("  ⚠️ POSITION MISMATCHES DETECTED - consider closing all and restarting")
+        else:
+            logger.info("  ✅ All positions reconciled successfully")
+        
+        logger.info("-" * 70)
+        
+        return reconciliation
+
+
     def monitor_data_only(self, symbols: List[str] = None, duration_minutes: int = 10):
         """
         Monitor real-time streaming data without executing trades.
@@ -410,13 +510,10 @@ class TradingPartner:
                         self.crypto_trader.close_position(opened_asset)
                     return False
                 
-                qty = leg_notional / price
-                
-                entry_prices[asset] = price
-                quantities[asset] = qty if is_long else -qty
                 leg_notionals[asset] = leg_notional
 
                 # ----- execute futures orders -----
+                # Store actual filled quantity and price from order response
                 if is_long:
                     order = self.crypto_trader.open_long(
                         symbol=asset,
@@ -424,12 +521,18 @@ class TradingPartner:
                     )
                     if order is None:
                         logger.error(f"❌ LONG order failed for {asset}, aborting spread entry")
-                        # Rollback: close any already-opened positions
+                        # Rollback: close any already-opened positions using their tracked quantities
                         for opened_asset in opened_assets:
-                            logger.info(f"🔄 Rolling back: closing {opened_asset}")
-                            self.crypto_trader.close_position(opened_asset)
+                            rollback_qty = quantities.get(opened_asset, 0)
+                            rollback_side = 'long' if rollback_qty > 0 else 'short'
+                            logger.info(f"🔄 Rolling back: closing {opened_asset} ({rollback_side} {abs(rollback_qty):.6f})")
+                            self.crypto_trader.reduce_position(opened_asset, abs(rollback_qty), rollback_side)
                         return False
-                    logger.info(f"(LONG) 🟢 LONG {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
+                    # Use actual filled quantity and price from order
+                    quantities[asset] = order.amount
+                    # Use fill price if available, otherwise fall back to streaming price
+                    entry_prices[asset] = order.price if order.price else price
+                    logger.info(f"(LONG) 🟢 LONG {asset}: qty={order.amount:.6f} @ ${entry_prices[asset]:.2f} (${leg_notional:.2f}, weight: {weight:.3f})")
                 else:
                     order = self.crypto_trader.open_short(
                         symbol=asset,
@@ -437,12 +540,18 @@ class TradingPartner:
                     )
                     if order is None:
                         logger.error(f"❌ SHORT order failed for {asset}, aborting spread entry")
-                        # Rollback: close any already-opened positions
+                        # Rollback: close any already-opened positions using their tracked quantities
                         for opened_asset in opened_assets:
-                            logger.info(f"🔄 Rolling back: closing {opened_asset}")
-                            self.crypto_trader.close_position(opened_asset)
+                            rollback_qty = quantities.get(opened_asset, 0)
+                            rollback_side = 'long' if rollback_qty > 0 else 'short'
+                            logger.info(f"🔄 Rolling back: closing {opened_asset} ({rollback_side} {abs(rollback_qty):.6f})")
+                            self.crypto_trader.reduce_position(opened_asset, abs(rollback_qty), rollback_side)
                         return False
-                    logger.info(f"(LONG) 🔴 SHORT {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
+                    # Use actual filled quantity and price from order (negative qty for short)
+                    quantities[asset] = -order.amount
+                    # Use fill price if available, otherwise fall back to streaming price
+                    entry_prices[asset] = order.price if order.price else price
+                    logger.info(f"(LONG) 🔴 SHORT {asset}: qty={order.amount:.6f} @ ${entry_prices[asset]:.2f} (${leg_notional:.2f}, weight: {weight:.3f})")
                 
                 orders.append(order)
                 opened_assets.append(asset)  # Track this leg as successfully opened
@@ -549,13 +658,10 @@ class TradingPartner:
                         self.crypto_trader.close_position(opened_asset)
                     return False
                 
-                qty = leg_notional / price
-                
-                quantities[asset] = -qty if is_short else qty
-                entry_prices[asset] = price
                 leg_notionals[asset] = leg_notional
             
                 # ----- execute futures orders -----
+                # Store actual filled quantity and price from order response
                 if is_short:
                     order = self.crypto_trader.open_short(
                         symbol=asset,
@@ -563,12 +669,18 @@ class TradingPartner:
                     )
                     if order is None:
                         logger.error(f"❌ SHORT order failed for {asset}, aborting spread entry")
-                        # Rollback: close any already-opened positions
+                        # Rollback: close any already-opened positions using their tracked quantities
                         for opened_asset in opened_assets:
-                            logger.info(f"🔄 Rolling back: closing {opened_asset}")
-                            self.crypto_trader.close_position(opened_asset)
+                            rollback_qty = quantities.get(opened_asset, 0)
+                            rollback_side = 'long' if rollback_qty > 0 else 'short'
+                            logger.info(f"🔄 Rolling back: closing {opened_asset} ({rollback_side} {abs(rollback_qty):.6f})")
+                            self.crypto_trader.reduce_position(opened_asset, abs(rollback_qty), rollback_side)
                         return False
-                    logger.info(f"(SHORT) 🔴 SHORT {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
+                    # Use actual filled quantity and price from order (negative qty for short)
+                    quantities[asset] = -order.amount
+                    # Use fill price if available, otherwise fall back to streaming price
+                    entry_prices[asset] = order.price if order.price else price
+                    logger.info(f"(SHORT) 🔴 SHORT {asset}: qty={order.amount:.6f} @ ${entry_prices[asset]:.2f} (${leg_notional:.2f}, weight: {weight:.3f})")
                 else:
                     order = self.crypto_trader.open_long(
                         symbol=asset,
@@ -576,12 +688,18 @@ class TradingPartner:
                     )
                     if order is None:
                         logger.error(f"❌ LONG order failed for {asset}, aborting spread entry")
-                        # Rollback: close any already-opened positions
+                        # Rollback: close any already-opened positions using their tracked quantities
                         for opened_asset in opened_assets:
-                            logger.info(f"🔄 Rolling back: closing {opened_asset}")
-                            self.crypto_trader.close_position(opened_asset)
+                            rollback_qty = quantities.get(opened_asset, 0)
+                            rollback_side = 'long' if rollback_qty > 0 else 'short'
+                            logger.info(f"🔄 Rolling back: closing {opened_asset} ({rollback_side} {abs(rollback_qty):.6f})")
+                            self.crypto_trader.reduce_position(opened_asset, abs(rollback_qty), rollback_side)
                         return False
-                    logger.info(f"(SHORT) 🟢 LONG {asset}: ${leg_notional:.2f} (weight: {weight:.3f})")
+                    # Use actual filled quantity and price from order
+                    quantities[asset] = order.amount
+                    # Use fill price if available, otherwise fall back to streaming price
+                    entry_prices[asset] = order.price if order.price else price
+                    logger.info(f"(SHORT) 🟢 LONG {asset}: qty={order.amount:.6f} @ ${entry_prices[asset]:.2f} (${leg_notional:.2f}, weight: {weight:.3f})")
                 
                 orders.append(order)
                 opened_assets.append(asset)  # Track this leg as successfully opened
@@ -621,7 +739,10 @@ class TradingPartner:
         """
         Exit an existing spread position.
         
-        Closes all legs of the spread position using Binance Futures close_position.
+        Closes only the specific quantities associated with this spread position,
+        leaving any quantities from other spread positions intact. Uses the
+        reduce_position method to close exact amounts rather than closing
+        the entire position for each symbol.
         
         Args:
             group_id: The spread group ID
@@ -638,13 +759,26 @@ class TradingPartner:
         try:
             position = self._spread_positions[group_id]
             
-            # Close each leg using close_position
+            # Close each leg using the EXACT quantity from when we opened
+            # This preserves quantities from other spread positions that share these symbols
             for asset in position.assets:
-                order = self.crypto_trader.close_position(symbol=asset)
+                qty = position.quantities.get(asset, 0)
+                if qty == 0:
+                    logger.warning(f"⚠️ Zero quantity for {asset} in {group_id}")
+                    continue
+                
+                # Determine side based on sign: positive = long, negative = short
+                side = 'long' if qty > 0 else 'short'
+                
+                order = self.crypto_trader.reduce_position(
+                    symbol=asset,
+                    qty=abs(qty),
+                    side=side,
+                )
                 if order:
-                    logger.info(f"🔚 Closed {asset}")
+                    logger.info(f"🔚 Closed {asset}: {side} {abs(qty):.6f}")
                 else:
-                    logger.warning(f"⚠️ No position to close for {asset}")
+                    logger.warning(f"⚠️ Failed to close {asset} for {group_id}")
             
             position.update_pnl(price_map)
             logger.info(f"🔚 Closed spread {group_id}: P&L=${position.unrealized_pnl:.2f} | Reason: {reason}")
@@ -974,37 +1108,46 @@ class TradingPartner:
 
 
     def _log_spread_positions(self) -> None:
-        """Log summary of open spread positions with exchange P&L and leg details."""
+        """Log summary of open spread positions with accurate per-spread P&L."""
         if not self._spread_positions:
             return
         
         logger.info("\n📋 OPEN SPREAD POSITIONS:")
         logger.info("-" * 60)
         
-        # Fetch actual positions from exchange for accurate P&L
+        # Fetch actual positions from exchange
         try:
             exchange_positions = {p.symbol: p for p in self.crypto_trader.get_all_positions()}
         except Exception as e:
             logger.warning(f"Could not fetch exchange positions: {e}")
             exchange_positions = {}
         
+        # Calculate total local quantity per symbol to properly attribute exchange P&L
+        # This avoids double-counting when multiple spreads share a symbol
+        total_local_qty_by_symbol: Dict[str, float] = {}
+        for pos in self._spread_positions.values():
+            for asset, qty in pos.quantities.items():
+                total_local_qty_by_symbol[asset] = total_local_qty_by_symbol.get(asset, 0) + qty
+        
         total_pnl = 0.0
         for group_id, pos in self._spread_positions.items():
             z_str = f"{pos.current_zscore:.2f}" if pos.current_zscore == pos.current_zscore else "N/A"
             
-            # Calculate P&L from exchange positions (more accurate - includes fees)
-            exchange_pnl = 0.0
+            # Calculate P&L for this spread using local calculation (most accurate per-spread)
+            # This avoids the double-counting issue with exchange P&L when symbols are shared
+            spread_pnl = 0.0
             for asset in pos.assets:
-                if asset in exchange_positions:
-                    exchange_pnl += exchange_positions[asset].unrealized_pnl
+                qty = pos.quantities.get(asset, 0)
+                entry = pos.entry_prices.get(asset, 0)
+                current = pos.current_prices.get(asset, entry)
+                leg_pnl = qty * (current - entry)
+                spread_pnl += leg_pnl
             
-            # Use exchange P&L if available, otherwise use calculated P&L
-            displayed_pnl = exchange_pnl if exchange_pnl != 0 else pos.unrealized_pnl
-            total_pnl += displayed_pnl
+            total_pnl += spread_pnl
             
             logger.info(
                 f"  {group_id}: {pos.side} | Entry z={pos.entry_zscore:.2f} | "
-                f"Current z={z_str} | P&L=${displayed_pnl:+.2f}"
+                f"Current z={z_str} | P&L=${spread_pnl:+.2f}"
             )
             
             # Log individual legs with details
@@ -1013,21 +1156,31 @@ class TradingPartner:
                 side = "LONG" if qty > 0 else "SHORT"
                 entry = pos.entry_prices.get(asset, 0)
                 current = pos.current_prices.get(asset, entry)
+                leg_pnl = qty * (current - entry)
                 
-                # Show exchange position info if available (more accurate)
+                # Show exchange position reconciliation info
                 if asset in exchange_positions:
                     ep = exchange_positions[asset]
+                    local_total = total_local_qty_by_symbol.get(asset, 0)
+                    exchange_qty = ep.contracts if ep.side == 'long' else -ep.contracts
+                    match_indicator = "✓" if abs(local_total - exchange_qty) < 0.0001 else "⚠️"
                     logger.info(
                         f"    └─ {asset}: {side} {abs(qty):.6f} @ ${entry:.2f} → ${current:.2f} "
-                        # f"(P&L: ${ep.unrealized_pnl:+.2f})"
+                        f"(P&L: ${leg_pnl:+.2f}) {match_indicator}"
                     )
                 else:
-                    # Fallback to calculated P&L
-                    leg_pnl = qty * (current - entry)
                     logger.info(
                         f"    └─ {asset}: {side} {abs(qty):.6f} @ ${entry:.2f} → ${current:.2f} "
-                        f"(calc P&L: ${leg_pnl:+.2f})"
+                        f"(P&L: ${leg_pnl:+.2f}) ⚠️ NOT ON EXCHANGE"
                     )
         
-        logger.info(f"  TOTAL P&L: ${total_pnl:+.2f}")
+        logger.info(f"  TOTAL SPREAD P&L: ${total_pnl:+.2f}")
+        
+        # Show exchange total unrealized P&L for comparison
+        if exchange_positions:
+            exchange_total_pnl = sum(p.unrealized_pnl for p in exchange_positions.values())
+            logger.info(f"  EXCHANGE TOTAL P&L: ${exchange_total_pnl:+.2f}")
+            if abs(total_pnl - exchange_total_pnl) > 0.01:
+                logger.info(f"  ℹ️ Difference may be due to mark price vs last price, fees, or funding")
+        
         logger.info("-" * 60)

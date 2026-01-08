@@ -723,15 +723,36 @@ class CCXTFuturesTrader:
                 amount=float(qty),
             )
             
-            print(f"🟢 Opened LONG {symbol}: qty={qty}", flush=True)
+            # Verify order was actually filled
+            order_status = (order.get('status') or '').lower()
+            filled_amount = float(order.get('filled', 0) or order.get('amount', 0) or 0)
+            
+            # Check for failed/rejected orders
+            if order_status in ('canceled', 'cancelled', 'rejected', 'expired'):
+                print(f"❌ LONG order for {symbol} was {order_status}", flush=True)
+                return None
+            
+            # Check for zero fills
+            if filled_amount <= 0:
+                print(f"❌ LONG order for {symbol} had zero fill (status: {order_status})", flush=True)
+                return None
+            
+            # Warn if unexpected status but proceed if we have a filled amount
+            if order_status not in ('closed', 'filled', 'open', ''):
+                print(f"⚠️ Unexpected order status '{order_status}' for {symbol}, filled={filled_amount}", flush=True)
+            
+            # Get actual fill price from order (more accurate than streaming price)
+            fill_price = float(order.get('average', 0) or order.get('price', 0) or 0)
+            
+            print(f"🟢 Opened LONG {symbol}: qty={filled_amount} (requested: {qty})", flush=True)
             
             return FuturesOrder(
                 id=order['id'],
                 symbol=order['symbol'],
                 side=order['side'],
                 type=order['type'],
-                amount=float(order.get('amount', qty)),
-                price=float(order['price']) if order.get('price') else None,
+                amount=filled_amount,
+                price=fill_price if fill_price > 0 else None,
                 cost=float(order.get('cost', 0)),
                 status=order['status'],
                 timestamp=datetime.fromtimestamp(order['timestamp'] / 1000, tz=ZoneInfo("UTC")),
@@ -804,15 +825,36 @@ class CCXTFuturesTrader:
                 amount=float(qty),
             )
             
-            print(f"🔴 Opened SHORT {symbol}: qty={qty}", flush=True)
+            # Verify order was actually filled
+            order_status = (order.get('status') or '').lower()
+            filled_amount = float(order.get('filled', 0) or order.get('amount', 0) or 0)
+            
+            # Check for failed/rejected orders
+            if order_status in ('canceled', 'cancelled', 'rejected', 'expired'):
+                print(f"❌ SHORT order for {symbol} was {order_status}", flush=True)
+                return None
+            
+            # Check for zero fills
+            if filled_amount <= 0:
+                print(f"❌ SHORT order for {symbol} had zero fill (status: {order_status})", flush=True)
+                return None
+            
+            # Warn if unexpected status but proceed if we have a filled amount
+            if order_status not in ('closed', 'filled', 'open', ''):
+                print(f"⚠️ Unexpected order status '{order_status}' for {symbol}, filled={filled_amount}", flush=True)
+            
+            # Get actual fill price from order (more accurate than streaming price)
+            fill_price = float(order.get('average', 0) or order.get('price', 0) or 0)
+            
+            print(f"🔴 Opened SHORT {symbol}: qty={filled_amount} (requested: {qty})", flush=True)
             
             return FuturesOrder(
                 id=order['id'],
                 symbol=order['symbol'],
                 side=order['side'],
                 type=order['type'],
-                amount=float(order.get('amount', qty)),
-                price=float(order['price']) if order.get('price') else None,
+                amount=filled_amount,
+                price=fill_price if fill_price > 0 else None,
                 cost=float(order.get('cost', 0)),
                 status=order['status'],
                 timestamp=datetime.fromtimestamp(order['timestamp'] / 1000, tz=ZoneInfo("UTC")),
@@ -820,13 +862,17 @@ class CCXTFuturesTrader:
             )
             
         except Exception as e:
-            print(f"❌ Failed to open short {symbol}: {e}")
+            print(f"❌ Failed to open short {symbol}: {e}", flush=True)
             return None
 
 
     def close_position(self, symbol: str) -> Optional[FuturesOrder]:
         """
         Close an existing position for a symbol.
+        
+        WARNING: This closes the ENTIRE position for the symbol. If multiple
+        spread positions share this symbol, use reduce_position() instead
+        to close only a specific quantity.
         
         Args:
             symbol: Futures symbol
@@ -874,6 +920,91 @@ class CCXTFuturesTrader:
             
         except Exception as e:
             print(f"❌ Failed to close position {symbol}: {e}", flush=True)
+            return None
+
+
+    def reduce_position(
+        self,
+        symbol: str,
+        qty: float,
+        side: str,
+    ) -> Optional[FuturesOrder]:
+        """
+        Reduce a position by a specific quantity.
+        
+        Unlike close_position() which closes the ENTIRE position for a symbol,
+        this method closes only the specified amount. Essential for spread
+        trading where a symbol may be involved in multiple spread positions.
+        
+        Args:
+            symbol: Futures symbol
+            qty: Quantity to close (always positive)
+            side: 'long' or 'short' - the side of the position we're reducing
+            
+        Returns:
+            FuturesOrder or None on failure
+            
+        Example:
+            >>> # Close 0.5 contracts of a long BTC position
+            >>> order = trader.reduce_position('BTC/USD:USD', qty=0.5, side='long')
+        """
+        try:
+            # To reduce a long position, we sell; to reduce short, we buy
+            close_side = 'sell' if side == 'long' else 'buy'
+            
+            # Round to valid precision
+            qty_precise = self.exchange.amount_to_precision(symbol, abs(qty))
+            
+            if qty_precise is None or float(qty_precise) <= 0:
+                print(f"⚠️ Invalid quantity for {symbol}: {qty_precise}", flush=True)
+                return None
+            
+            order = self.exchange.create_order(
+                symbol=symbol,
+                type='market',
+                side=close_side,
+                amount=float(qty_precise),
+                params={'reduceOnly': True},
+            )
+            
+            # Verify order was actually filled
+            order_status = (order.get('status') or '').lower()
+            filled_amount = float(order.get('filled', 0) or order.get('amount', 0) or 0)
+            
+            # Check for failed/rejected orders
+            if order_status in ('canceled', 'cancelled', 'rejected', 'expired'):
+                print(f"❌ Reduce order for {symbol} was {order_status}", flush=True)
+                return None
+            
+            # Check for zero fills
+            if filled_amount <= 0:
+                print(f"❌ Reduce order for {symbol} had zero fill (status: {order_status})", flush=True)
+                return None
+            
+            # Warn if unexpected status but proceed if we have a filled amount
+            if order_status not in ('closed', 'filled', 'open', ''):
+                print(f"⚠️ Unexpected order status '{order_status}' for reduce {symbol}, filled={filled_amount}", flush=True)
+            
+            # Get actual fill price from order
+            fill_price = float(order.get('average', 0) or order.get('price', 0) or 0)
+            
+            print(f"🔚 Reduced {side.upper()} {symbol}: qty={filled_amount} (requested: {qty_precise})", flush=True)
+            
+            return FuturesOrder(
+                id=order['id'],
+                symbol=order['symbol'],
+                side=order['side'],
+                type=order['type'],
+                amount=filled_amount,
+                price=fill_price if fill_price > 0 else None,
+                cost=float(order.get('cost', 0)),
+                status=order['status'],
+                timestamp=datetime.fromtimestamp(order['timestamp'] / 1000, tz=ZoneInfo("UTC")),
+                info=order.get('info', {}),
+            )
+            
+        except Exception as e:
+            print(f"❌ Failed to reduce position {symbol}: {e}", flush=True)
             return None
 
 
