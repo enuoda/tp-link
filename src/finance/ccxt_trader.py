@@ -703,6 +703,12 @@ class CCXTFuturesTrader:
             market = self.exchange.market(symbol)
             qty = self.exchange.amount_to_precision(symbol, qty)
             
+            # Check minimum order size before submitting
+            min_amount = float(market.get('limits', {}).get('amount', {}).get('min', 0))
+            if float(qty) <= min_amount:
+                print(f"❌ Order size {qty} at or below minimum {min_amount} for {symbol}", flush=True)
+                return None
+            
             # Submit market buy order
             order = self.exchange.create_order(
                 symbol=symbol,
@@ -771,6 +777,12 @@ class CCXTFuturesTrader:
             # Round to valid precision
             market = self.exchange.market(symbol)
             qty = self.exchange.amount_to_precision(symbol, qty)
+            
+            # Check minimum order size before submitting
+            min_amount = float(market.get('limits', {}).get('amount', {}).get('min', 0))
+            if float(qty) <= min_amount:
+                print(f"❌ Order size {qty} at or below minimum {min_amount} for {symbol}", flush=True)
+                return None
             
             # Submit market sell order
             order = self.exchange.create_order(

@@ -55,6 +55,16 @@ logger = logging.getLogger(__name__)
 
 
 # ==================================================
+# HEDGE RATIO FILTERING
+# ==================================================
+
+# Hedge ratios outside this range produce leg notionals that are impractical to trade.
+# E.g., hedge_ratio=0.01 means one leg would be 1% of the other, likely below exchange minimums.
+MIN_HEDGE_RATIO = 0.05  # Skip pairs where one leg would be <5% of the other
+MAX_HEDGE_RATIO = 20.0  # Skip pairs requiring extreme leverage in one leg (1/0.05 = 20)
+
+
+# ==================================================
 # DATA CLASSES
 # ==================================================
 
@@ -223,11 +233,22 @@ def _pairs_payload(
     pairs_processed = 0
     pairs_skipped_data = 0
     pairs_skipped_error = 0
+    pairs_skipped_hedge_ratio = 0
     
     for (a_base, b_base), (hedge_ratio, std_spread) in mapping.items():
         a = base_to_full.get(a_base, a_base)
         b = base_to_full.get(b_base, b_base)
         pairs_processed += 1
+        
+        # Filter extreme hedge ratios that would produce untradeable leg sizes
+        abs_hedge = abs(hedge_ratio)
+        if abs_hedge < MIN_HEDGE_RATIO or abs_hedge > MAX_HEDGE_RATIO:
+            logger.debug(
+                f"\t{a}/{b}: Skipped - hedge ratio {hedge_ratio:.4f} outside tradeable range "
+                f"[{MIN_HEDGE_RATIO}, {MAX_HEDGE_RATIO}]"
+            )
+            pairs_skipped_hedge_ratio += 1
+            continue
         
         try:
             Y, ordered = _align_arrays([a, b], days_back, time_scale)
@@ -281,6 +302,7 @@ def _pairs_payload(
 
     logger.info(f"\tProcessed: {pairs_processed}, Groups created: {len(groups)}")
     logger.info(f"\tSkipped (insufficient data): {pairs_skipped_data}, Skipped (errors): {pairs_skipped_error}")
+    logger.info(f"\tSkipped (extreme hedge ratio): {pairs_skipped_hedge_ratio}")
 
     groups.sort(key=lambda g: g.selection_score, reverse=True)
     return groups[:max_groups]

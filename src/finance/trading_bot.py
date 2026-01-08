@@ -42,6 +42,7 @@ from .rolling_buffer import RollingCointegrationBuffer
 MOMENTUM_BUY_THRESHOLD = 0.02
 MOMENTUM_SELL_THRESHOLD = -0.02
 MOMENTUM_MIN_DATA_POINTS = 10
+MIN_LEG_NOTIONAL = 15.0  # minimum $ per spread leg to ensure order meets exchange minimums
 
 # ==================================================
 # LOGGING
@@ -396,6 +397,19 @@ class TradingPartner:
                 
                 # Scale notional by absolute weight to maintain hedge ratio
                 leg_notional = actual_notional * abs(weight)
+                
+                # Check minimum leg notional before attempting order
+                if leg_notional < MIN_LEG_NOTIONAL:
+                    logger.warning(
+                        f"⚠️ Skipping spread {group_id}: leg {asset} notional ${leg_notional:.2f} "
+                        f"below minimum ${MIN_LEG_NOTIONAL:.2f} (weight: {weight:.4f})"
+                    )
+                    # Rollback: close any already-opened positions
+                    for opened_asset in opened_assets:
+                        logger.info(f"🔄 Rolling back: closing {opened_asset}")
+                        self.crypto_trader.close_position(opened_asset)
+                    return False
+                
                 qty = leg_notional / price
                 
                 entry_prices[asset] = price
@@ -522,6 +536,19 @@ class TradingPartner:
                 
                 # Scale notional by absolute weight to maintain hedge ratio
                 leg_notional = actual_notional * abs(weight)
+                
+                # Check minimum leg notional before attempting order
+                if leg_notional < MIN_LEG_NOTIONAL:
+                    logger.warning(
+                        f"⚠️ Skipping spread {group_id}: leg {asset} notional ${leg_notional:.2f} "
+                        f"below minimum ${MIN_LEG_NOTIONAL:.2f} (weight: {weight:.4f})"
+                    )
+                    # Rollback: close any already-opened positions
+                    for opened_asset in opened_assets:
+                        logger.info(f"🔄 Rolling back: closing {opened_asset}")
+                        self.crypto_trader.close_position(opened_asset)
+                    return False
+                
                 qty = leg_notional / price
                 
                 quantities[asset] = -qty if is_short else qty
