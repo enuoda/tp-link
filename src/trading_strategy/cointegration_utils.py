@@ -81,10 +81,17 @@ def run_pairwise_cointegration(
     # Log data retrieval summary
     logger.debug(f"Retrieved data for {len(sorted_symbols)} symbols, {len(_timestamps)} timestamps")
 
-    # Ensure numpy arrays and consistent container types
-    arrays = [np.asarray(a, dtype=float) for a in price_arrays]
+    # Ensure numpy arrays and convert to LOG PRICES for cointegration.
+    # Log prices make the spread a percentage relationship, removing
+    # heteroskedasticity and making hedge ratios more stable over time.
+    raw_arrays = [np.asarray(a, dtype=float) for a in price_arrays]
+    arrays = []
+    for a in raw_arrays:
+        with np.errstate(divide='ignore', invalid='ignore'):
+            log_a = np.where((a > 0) & np.isfinite(a), np.log(a), np.nan)
+        arrays.append(log_a)
     names = list(sorted_symbols)
-    
+
     # Log data quality for each symbol
     for i, name in enumerate(names):
         valid_count = np.sum(~np.isnan(arrays[i]) & np.isfinite(arrays[i]))
@@ -92,7 +99,7 @@ def run_pairwise_cointegration(
         logger.debug(f"  {name}: {valid_count}/{total_count} valid points ({100*valid_count/total_count:.1f}%)")
 
     results: dict[Tuple[str, str], Tuple[float, float]] = {}
-    
+
     # Track statistics
     pairs_tested = 0
     pairs_skipped_data = 0
@@ -103,7 +110,7 @@ def run_pairwise_cointegration(
     n = len(arrays)
     total_pairs = n * (n - 1) // 2
     logger.debug(f"Testing {total_pairs} pairs...")
-    
+
     for i in range(n):
         for j in range(i + 1, n):
             x = arrays[i]
@@ -121,7 +128,7 @@ def run_pairwise_cointegration(
                 pairs_skipped_data += 1
                 continue
 
-            # Engle-Granger
+            # Engle-Granger on log prices
             try:
                 t_stat, p_val, crit_vals = coint(x_valid, y_valid)
                 pairs_tested += 1
@@ -134,17 +141,16 @@ def run_pairwise_cointegration(
             logger.debug(f"  {pair_name}: t={t_stat:.3f}, p={p_val:.4f}")
 
             if p_val < p_threshold:
-                # OLS hedge ratio y ~ a + b*x
+                # OLS hedge ratio on log prices: log(y) ~ a + b*log(x)
                 try:
                     X = sm.add_constant(x_valid)
                     model = sm.OLS(y_valid, X).fit()
                     hedge_ratio = float(model.params[1])
                 except Exception as e:
                     logger.debug(f"  {pair_name}: OLS failed ({e}), using polyfit")
-                    # fallback: simple slope via np.polyfit
                     hedge_ratio = float(np.polyfit(x_valid, y_valid, 1)[0])
 
-                # Standard deviation of spread
+                # Standard deviation of spread (in log-price space)
                 spread = y_valid - hedge_ratio * x_valid
                 std_spread = float(np.std(spread, ddof=1)) if spread.size > 1 else 0.0
 

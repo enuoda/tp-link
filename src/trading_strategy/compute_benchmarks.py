@@ -264,49 +264,105 @@ def _pairs_payload(
         
         try:
             Y, ordered = _align_arrays([a, b], days_back, time_scale)
-            x = Y[:, 0]
-            y = Y[:, 1]
-            mask = ~(np.isnan(x) | np.isnan(y) | np.isinf(x) | np.isinf(y))
-            x = x[mask]
-            y = y[mask]
-            
-            if x.size < 10:
-                logger.debug(f"\t{a}/{b}: Skipped - only {x.size} valid data points")
+            x_raw = Y[:, 0]
+            y_raw = Y[:, 1]
+            mask = ~(np.isnan(x_raw) | np.isnan(y_raw) | np.isinf(x_raw) | np.isinf(y_raw))
+            mask &= (x_raw > 0) & (y_raw > 0)
+            x_raw = x_raw[mask]
+            y_raw = y_raw[mask]
+
+            if x_raw.size < 100:
+                logger.debug(f"\t{a}/{b}: Skipped - only {x_raw.size} valid data points (need >=100)")
                 pairs_skipped_data += 1
                 continue
-                
-            t_stat, p_val, _ = coint(x, y)
-            spread = y - hedge_ratio * x
-            hl = _half_life(spread)
-            
-            logger.debug(f"\t{a}/{b}: t={t_stat:.3f}, p={p_val:.4f}, half_life={hl:.1f}")
-            
-            # Convert to canonical symbols for storage (portable across exchanges)
+
+            # Convert to log prices
+            x_log = np.log(x_raw)
+            y_log = np.log(y_raw)
+
+            # ----- TRAIN / TEST SPLIT (70/30) -----
+            split_idx = int(len(x_log) * 0.7)
+            x_train, x_test = x_log[:split_idx], x_log[split_idx:]
+            y_train, y_test = y_log[:split_idx], y_log[split_idx:]
+
+            # Cointegration test on training set
+            t_stat, p_val, _ = coint(x_train, y_train)
+
+            if p_val >= p_threshold:
+                pairs_skipped_data += 1
+                continue
+
+            # OLS hedge ratio on training set
+            X_ols = np.column_stack([np.ones_like(x_train), x_train])
+            beta_vec = np.linalg.lstsq(X_ols, y_train, rcond=None)[0]
+            hedge_ratio_log = float(beta_vec[1])
+
+            # Spread on TRAIN set for mean/std estimation
+            spread_train = y_train - hedge_ratio_log * x_train
+            train_mean = float(np.mean(spread_train))
+            train_std = float(np.std(spread_train, ddof=1))
+            hl = _half_life(spread_train)
+
+            if train_std < 1e-10:
+                pairs_skipped_data += 1
+                continue
+
+            # ----- OUT-OF-SAMPLE VALIDATION on test set -----
+            spread_test = y_test - hedge_ratio_log * x_test
+            z_test = (spread_test - train_mean) / train_std
+
+            # Check: does the test-set spread still mean-revert?
+            # Require the test-set mean z-score to be within ±3 of zero
+            # and test-set std to be within 0.3x-3x of train std
+            test_mean_z = float(np.mean(z_test))
+            test_std_ratio = float(np.std(spread_test, ddof=1)) / train_std if train_std else float('inf')
+
+            oos_valid = abs(test_mean_z) < 3.0 and 0.3 < test_std_ratio < 3.0
+            if not oos_valid:
+                logger.debug(
+                    f"\t{a}/{b}: Failed OOS validation "
+                    f"(test_mean_z={test_mean_z:.2f}, test_std_ratio={test_std_ratio:.2f})"
+                )
+                pairs_skipped_data += 1
+                continue
+
+            logger.debug(f"\t{a}/{b}: t={t_stat:.3f}, p={p_val:.4f}, half_life={hl:.1f}, OOS_ok={oos_valid}")
+
+            # Convert to canonical symbols for storage
             a_canonical = _to_canonical(a)
             b_canonical = _to_canonical(b)
-            
+
+            # Use FULL dataset for final parameter estimation
+            spread_full = y_log - hedge_ratio_log * x_log
+
             vect = GroupVector(
-                weights={a_canonical: float(-hedge_ratio), b_canonical: 1.0},
-                spread_mean=float(np.nanmean(spread)),
-                spread_std=float(np.nanstd(spread, ddof=1)) if spread.size > 1 else 0.0,
+                weights={a_canonical: float(-hedge_ratio_log), b_canonical: 1.0},
+                spread_mean=float(np.mean(spread_full)),
+                spread_std=float(np.std(spread_full, ddof=1)),
                 half_life=float(hl),
-                test_stats={"t_stat": float(t_stat)},
+                test_stats={
+                    "t_stat": float(t_stat),
+                    "oos_mean_z": test_mean_z,
+                    "oos_std_ratio": test_std_ratio,
+                },
                 p_value=float(p_val),
             )
-            # Selection: prefer low p, low half-life, low std
-            score = (1.0 - min(1.0, float(p_val))) + (1.0 / (1.0 + float(hl) if math.isfinite(hl) else 1e6)) + (
-                1.0 / (1.0 + float(vect.spread_std))
-            )
+
+            # Selection score: expected Sharpe-like metric
+            # Penalize slow reversion (high half-life) and poor OOS stability
+            hl_safe = float(hl) if math.isfinite(hl) and hl > 0 else 1e6
+            score = -math.log10(max(float(p_val), 1e-10)) / hl_safe
+
             rec = GroupRecord(
                 id=_slug([a_canonical, b_canonical]),
-                assets=[a_canonical, b_canonical],  # Store canonical symbols
-                method="EngleGranger",
+                assets=[a_canonical, b_canonical],
+                method="EngleGranger_LogPrice",
                 rank=1,
                 vectors=[vect],
                 selection_score=float(score),
             )
             groups.append(rec)
-            
+
         except Exception as e:
             logger.warning(f"\t{a}/{b}: Error during analysis - {e}")
             pairs_skipped_error += 1

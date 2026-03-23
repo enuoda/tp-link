@@ -332,7 +332,7 @@ def check_and_refresh_benchmarks(
     days_back: int = 30,
     time_scale: str = "hour",
     max_groups: int = 10,
-    p_threshold: float = 0.10,
+    p_threshold: float = 0.05,
 ) -> bool:
     """
     Check if cointegration benchmarks are stale and recompute if needed.
@@ -407,6 +407,7 @@ def run_indefinitely(
     recalibrate_interval: int = 10,
     recalibrate_min_obs: int = 50,
     exclude_symbols: list = None,
+    max_zscore: float = 10.0,
 ) -> None:
     """
     Run the live trading bot indefinitely until interrupted (Ctrl+C).
@@ -527,6 +528,7 @@ def run_indefinitely(
             benchmarks=trader.benchmarks,
             entry_zscore=entry_zscore,
             exit_zscore=exit_zscore,
+            max_zscore=max_zscore,
             max_groups=max_groups,
             entry_max_staleness_secs=entry_staleness,
             exit_max_staleness_secs=exit_staleness,
@@ -853,10 +855,10 @@ def main() -> int:
     parser.add_argument(
         '--p-threshold',
         type=float,
-        default=0.10,
-        help='P-value threshold for cointegration test (default: 0.10). '
-             'Higher values (e.g., 0.15, 0.20) are less strict and find more pairs; '
-             'lower values (e.g., 0.05) are more strict.'
+        default=0.05,
+        help='P-value threshold for cointegration test (default: 0.05). '
+             'Higher values (e.g., 0.10, 0.15) are less strict and find more pairs; '
+             'lower values (e.g., 0.01) are more strict.'
     )
     parser.add_argument(
         '--max-stream-symbols',
@@ -917,7 +919,33 @@ def main() -> int:
         help='Minimum price observations required before recalibration (default: 50). '
              'Lower values recalibrate sooner but may be less stable.'
     )
-    
+
+    # ---- risk management options -----
+    parser.add_argument(
+        '--max-loss-per-spread',
+        type=float,
+        default=50.0,
+        help='Force-exit a spread if unrealized loss exceeds this USD amount (default: 50).'
+    )
+    parser.add_argument(
+        '--reentry-cooldown',
+        type=float,
+        default=300.0,
+        help='Seconds to wait before re-entering a spread after exit (default: 300 = 5 min).'
+    )
+    parser.add_argument(
+        '--fee-rate',
+        type=float,
+        default=0.0005,
+        help='Per-side taker fee rate for transaction cost filter (default: 0.0005 = 0.05%%).'
+    )
+    parser.add_argument(
+        '--max-zscore',
+        type=float,
+        default=10.0,
+        help='Z-score cap: block entries and force exits beyond this (default: 10.0).'
+    )
+
     args = parser.parse_args()
     symbols = args.symbols if args.symbols else crypto_universe
     
@@ -988,17 +1016,23 @@ def main() -> int:
         # Apply exclusion filter to symbols
         filtered_symbols = filter_excluded_symbols(symbols, args.exclude_symbols)
         
-        trader = TradingPartner(paper=paper_trading)
+        trader = TradingPartner(
+            paper=paper_trading,
+            max_loss_per_spread=args.max_loss_per_spread,
+            reentry_cooldown_secs=args.reentry_cooldown,
+            fee_rate=args.fee_rate,
+        )
         logger.info("🤖 Starting timed trading mode...")
 
         success = trader.start_streaming_bot(
-            symbols=filtered_symbols, 
+            symbols=filtered_symbols,
             lookback_bars=args.lookback_bars,
             cycle_interval=args.cycle_interval,
             duration_minutes=args.duration,
             max_stream_symbols=args.max_stream_symbols,
             entry_zscore=args.entry_zscore,
             exit_zscore=args.exit_zscore,
+            max_zscore=args.max_zscore,
         )
         
         return 0 if success else 1
@@ -1014,7 +1048,12 @@ def main() -> int:
             p_threshold=args.p_threshold,
         )
         
-        trader = TradingPartner(paper=paper_trading)
+        trader = TradingPartner(
+            paper=paper_trading,
+            max_loss_per_spread=args.max_loss_per_spread,
+            reentry_cooldown_secs=args.reentry_cooldown,
+            fee_rate=args.fee_rate,
+        )
         logger.info("🤖 Starting indefinite trading mode...")
 
         run_indefinitely(
@@ -1034,6 +1073,7 @@ def main() -> int:
             recalibrate_interval=args.recalibrate_interval,
             recalibrate_min_obs=args.recalibrate_min_obs,
             exclude_symbols=args.exclude_symbols,
+            max_zscore=args.max_zscore,
         )
 
         return 0

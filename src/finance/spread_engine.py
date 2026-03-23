@@ -83,6 +83,7 @@ class SpreadSignalEngine:
         benchmarks: Dict = None,
         entry_zscore: float = 2.0,
         exit_zscore: float = 0.5,
+        max_zscore: float = 10.0,
         max_groups: int = 10,
         entry_max_staleness_secs: float = 30.0,
         exit_max_staleness_secs: float = 300.0,
@@ -121,6 +122,7 @@ class SpreadSignalEngine:
         self.benchmarks = benchmarks
         self.entry_zscore = entry_zscore
         self.exit_zscore = exit_zscore
+        self.max_zscore = max_zscore
         self.max_groups = max_groups
         
         # ----- staleness thresholds -----
@@ -167,12 +169,20 @@ class SpreadSignalEngine:
         self._price_history_maxlen = 500
         self._last_recalibration: Optional[datetime] = None
         self._recalibration_count = 0
+
+        # ----- drift detection: rolling z-score history per group -----
+        self._zscore_history: Dict[str, List[float]] = {g.get("id", ""): [] for g in self.groups}
+        self._zscore_history_maxlen = 100
+        self._drift_threshold = 3.0  # mean |z| over window to flag drift
+        self._drifted_groups: set = set()
         
         # ----- check benchmark staleness and report status -----
+        self._benchmarks_stale = False
         if benchmarks.get("cointegration_groups"):
             if is_stale(benchmarks):
-                print("⚠️ Benchmark data is stale (>7 days old). Consider recomputing.")
-            
+                print("🚫 Benchmark data is stale (>7 days old). Signal generation BLOCKED until recomputed.")
+                self._benchmarks_stale = True
+
             if self.groups:
                 print(f"✅ Using {len(self.groups)} cointegration groups (of {len(all_groups)} total)")
             else:
@@ -259,27 +269,34 @@ class SpreadSignalEngine:
     def _compute_zscore(self, group: Dict) -> Tuple[float, Dict[str, float], float, float]:
         """
         Compute z-score for a group from current prices.
-        
+
+        Benchmarks store weights in log-price space, so we take log of
+        current prices before computing the spread.
+
         Returns:
             (zscore, weights, spread_mean, spread_std)
         """
         weights = get_weights(group)
         mean_, std_ = get_spread_params(group)
-        
-        # ----- compute spread value from current prices -----
+
+        # ----- compute spread in log-price space -----
         spread = 0.0
         for symbol, weight in weights.items():
             if symbol not in self._latest_prices:
                 return np.nan, weights, mean_, std_
 
-            spread += weight * self._latest_prices[symbol]
-        
+            price = self._latest_prices[symbol]
+            if price is None or price <= 0:
+                return np.nan, weights, mean_, std_
+
+            spread += weight * np.log(price)
+
         # ----- compute z-score -----
         if std_ and std_ > 0:
             zscore = (spread - mean_) / std_
         else:
             zscore = np.nan
-        
+
         return zscore, weights, mean_, std_
     
 
@@ -350,21 +367,60 @@ class SpreadSignalEngine:
         zscore, weights, spread_mean, spread_std = self._compute_zscore(group)
         if np.isnan(zscore):
             return None
-        
+
+        # ----- drift detection: track rolling z-score history -----
+        if group_id in self._zscore_history:
+            hist = self._zscore_history[group_id]
+            hist.append(abs(zscore))
+            if len(hist) > self._zscore_history_maxlen:
+                self._zscore_history[group_id] = hist[-self._zscore_history_maxlen:]
+            # Flag drift if rolling mean of |z| exceeds threshold over last 20 observations
+            if len(hist) >= 20:
+                rolling_mean = float(np.mean(hist[-20:]))
+                if rolling_mean > self._drift_threshold and group_id not in self._drifted_groups:
+                    self._drifted_groups.add(group_id)
+                    print(f"⚠️ Drift detected for {group_id}: rolling mean |z|={rolling_mean:.2f} > {self._drift_threshold}")
+                elif rolling_mean <= self._drift_threshold and group_id in self._drifted_groups:
+                    self._drifted_groups.discard(group_id)
+                    print(f"✅ Drift cleared for {group_id}: rolling mean |z|={rolling_mean:.2f}")
+
+        # Block entries on drifted groups (allow exits)
+        if group_id in self._drifted_groups and not has_pos:
+            return None
+
         # Always use engine's thresholds (set via CLI) - prioritize user parameters
         entry_thr = self.entry_zscore
         exit_thr = self.exit_zscore
-        
+
         confidence = 0.0
         signal_type = SignalType.HOLD
-        
+
+        # ----- z-score sanity cap: detect broken cointegration -----
+        if abs(zscore) > self.max_zscore:
+            if has_pos:
+                # Force exit — cointegration has likely broken down
+                print(f"🚨 Z-score {zscore:.2f} exceeds cap {self.max_zscore} for {group_id} — forcing EXIT")
+                return SpreadSignal(
+                    group_id=group_id,
+                    assets=assets,
+                    signal_type=SignalType.EXIT,
+                    zscore=zscore,
+                    confidence=1.0,
+                    weights=weights,
+                    spread_mean=spread_mean,
+                    spread_std=spread_std,
+                )
+            else:
+                # Skip entry — spread has diverged beyond tradeable range
+                return None
+
         if has_pos:
-            
+
             # ----- exit logic -----
             if max_staleness > exit_staleness_threshold:
                 stale_assets = [a for a, s in asset_staleness.items() if s > exit_staleness_threshold]
                 return None
-            
+
             if abs(zscore) <= exit_thr:
                 signal_type = SignalType.EXIT
                 confidence = 1.0 - abs(zscore) / exit_thr
@@ -384,7 +440,7 @@ class SpreadSignalEngine:
             # ----- entry logic -----
             if max_staleness > entry_staleness_threshold:
                 return None
-            
+
             # if spread is too high or too low, expect reversion
             if zscore >= entry_thr:
                 signal_type = SignalType.SELL_SPREAD
@@ -430,11 +486,15 @@ class SpreadSignalEngine:
             ...         force_close_position(signal.group_id)
         """
         signals = []
-        
+
+        # Block new entry signals when benchmarks are stale.
+        # Still allow EXIT / EMERGENCY_EXIT for open positions.
         for group in self.groups:
             signal = self._generate_signal_for_group(group)
 
             if signal is not None:
+                if self._benchmarks_stale and signal.signal_type in (SignalType.BUY_SPREAD, SignalType.SELL_SPREAD):
+                    continue  # block entries on stale benchmarks
                 signals.append(signal)
                 self._current_signals[signal.group_id] = signal
         
@@ -514,27 +574,37 @@ class SpreadSignalEngine:
             
             for group in groups_to_update:
                 assets = get_assets(group)  # Converts to exchange format
-                weights = get_weights(group)  # Converts to exchange format
-                
+
                 # ----- check if we have data for all assets -----
-                if not all(a in sym_to_idx for a in assets):
+                if len(assets) != 2 or not all(a in sym_to_idx for a in assets):
                     continue
-                
-                # ----- compute spread series -----
-                spread = np.zeros(prices.shape[1])
-                for asset, weight in weights.items():
-                    if asset in sym_to_idx:
-                        spread += weight * prices[sym_to_idx[asset]]
-                
-                # ----- update spread params in the group's first vector -----
+
+                # ----- re-estimate hedge ratio via OLS on log prices -----
+                px = np.log(prices[sym_to_idx[assets[0]]])
+                py = np.log(prices[sym_to_idx[assets[1]]])
+                mask = np.isfinite(px) & np.isfinite(py)
+                px, py = px[mask], py[mask]
+                if px.size < 50:
+                    continue
+                X_ols = np.column_stack([np.ones_like(px), px])
+                beta_vec = np.linalg.lstsq(X_ols, py, rcond=None)[0]
+                new_hedge = float(beta_vec[1])
+
+                spread = py - new_hedge * px
+
+                # ----- update weights and spread params -----
                 if group.get("vectors"):
                     new_mean = float(np.nanmean(spread))
                     new_std = float(np.nanstd(spread, ddof=1))
-                    
+
+                    group["vectors"][0]["weights"] = {
+                        assets[0]: float(-new_hedge),
+                        assets[1]: 1.0,
+                    }
                     group["vectors"][0]["spread_mean"] = new_mean
                     group["vectors"][0]["spread_std"] = new_std
-                    
-                    print(f"📊 Recalibrated {group.get('id')}: mean={new_mean:.4f}, std={new_std:.4f}")
+
+                    print(f"📊 Recalibrated {group.get('id')}: hedge={new_hedge:.4f}, mean={new_mean:.4f}, std={new_std:.4f}")
             
             return True
             
@@ -614,21 +684,28 @@ class SpreadSignalEngine:
             try:
                 weights = get_weights(group)
                 old_mean, old_std = get_spread_params(group)
-                
-                # ----- compute spread series from price history -----
-                spread_values = []
-                for i in range(min_obs):
-                    spread = 0.0
-                    idx = -(min_obs - i)
-                    for asset in assets:
-                        if asset in weights and asset in self._price_history:
-                            price = self._price_history[asset][idx]
-                            spread += weights[asset] * price
-                    spread_values.append(spread)
-                
+
+                # ----- build price arrays for the two assets -----
+                if len(assets) != 2:
+                    results[group_id] = {"success": False, "reason": "Only pairwise supported", "observations": min_obs}
+                    continue
+
+                asset_x, asset_y = assets[0], assets[1]
+                prices_x = np.array(self._price_history[asset_x][-min_obs:], dtype=float)
+                prices_y = np.array(self._price_history[asset_y][-min_obs:], dtype=float)
+
+                # ----- re-estimate hedge ratio via OLS on log prices -----
+                log_x = np.log(prices_x)
+                log_y = np.log(prices_y)
+                X_ols = np.column_stack([np.ones_like(log_x), log_x])
+                beta_vec = np.linalg.lstsq(X_ols, log_y, rcond=None)[0]
+                new_hedge = float(beta_vec[1])
+
+                # Compute spread with updated hedge ratio (on log prices)
+                spread_values = log_y - new_hedge * log_x
                 new_mean = float(np.mean(spread_values))
                 new_std = float(np.std(spread_values, ddof=1))
-                
+
                 if new_std < 1e-10:
                     results[group_id] = {
                         "success": False,
@@ -636,9 +713,22 @@ class SpreadSignalEngine:
                         "observations": min_obs,
                     }
                     continue
-                
-                # ----- update the group's spread params -----
+
+                # ----- figure out old hedge ratio for logging -----
+                old_weights = get_weights(group, convert_to_exchange=False)
+                old_hedge = None
+                for sym, w in old_weights.items():
+                    if w < 0:
+                        old_hedge = abs(w)
+                        break
+
+                # ----- update the group's weights and spread params -----
                 if group.get("vectors"):
+                    # Update weights: asset_x gets -hedge, asset_y gets +1.0
+                    group["vectors"][0]["weights"] = {
+                        assets[0]: float(-new_hedge),
+                        assets[1]: 1.0,
+                    }
                     group["vectors"][0]["spread_mean"] = new_mean
                     group["vectors"][0]["spread_std"] = new_std
                 
@@ -648,9 +738,12 @@ class SpreadSignalEngine:
                     "new_mean": new_mean,
                     "old_std": old_std,
                     "new_std": new_std,
+                    "old_hedge": old_hedge,
+                    "new_hedge": new_hedge,
                     "observations": min_obs,
                     "mean_shift": new_mean - old_mean,
                     "std_change_pct": ((new_std - old_std) / old_std * 100) if old_std else 0,
+                    "hedge_change": (new_hedge - old_hedge) if old_hedge else None,
                 }
                 
             except Exception as e:
@@ -682,6 +775,15 @@ class SpreadSignalEngine:
             "max_history_length": self._price_history_maxlen,
         }
     
+
+    @property
+    def benchmarks_stale(self) -> bool:
+        """Whether benchmarks are stale (entries blocked)."""
+        return self._benchmarks_stale
+
+    def mark_benchmarks_fresh(self) -> None:
+        """Clear the stale flag after benchmarks have been refreshed."""
+        self._benchmarks_stale = False
 
     def clear_price_history(self) -> None:
         """Clear the accumulated price history."""
@@ -727,6 +829,7 @@ def create_engine_from_benchmarks(
     benchmark_path: str = None,
     entry_zscore: float = 2.0,
     exit_zscore: float = 0.5,
+    max_zscore: float = 10.0,
     max_groups: int = 10,
     entry_max_staleness_secs: float = 30.0,
     exit_max_staleness_secs: float = 300.0,
@@ -734,16 +837,17 @@ def create_engine_from_benchmarks(
 ) -> SpreadSignalEngine:
     """
     Factory function to create a SpreadSignalEngine from benchmark file.
-    
+
     Args:
         benchmark_path: Path to benchmarks JSON, or None for default
         entry_zscore: Entry threshold
         exit_zscore: Exit threshold
+        max_zscore: Z-score cap — skip entries / force exits beyond this
         max_groups: Max groups to monitor
         entry_max_staleness_secs: Max price age (secs) for new entries
         exit_max_staleness_secs: Max price age (secs) for exits
         emergency_exit_staleness_secs: Force exit after this staleness
-        
+
     Returns:
         Configured SpreadSignalEngine
     """
@@ -752,6 +856,7 @@ def create_engine_from_benchmarks(
         benchmarks=benchmarks,
         entry_zscore=entry_zscore,
         exit_zscore=exit_zscore,
+        max_zscore=max_zscore,
         max_groups=max_groups,
         entry_max_staleness_secs=entry_max_staleness_secs,
         exit_max_staleness_secs=exit_max_staleness_secs,

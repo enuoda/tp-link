@@ -215,33 +215,10 @@ class RollingCointegrationBuffer:
                     common_idx = common_idx.intersection(df.index)
             
             if not common_idx:
-                # No common timestamps - try to use union with interpolation
-                all_idx = pd.DatetimeIndex(sorted(self._all_timestamps))
-                
-                prices = []
-                symbols_out = []
-                for symbol in symbols:
-                    if symbol not in dfs:
-                        continue
-                    df = dfs[symbol]
-                    # Reindex and interpolate
-                    reindexed = df.reindex(all_idx)
-                    reindexed[price_col] = reindexed[price_col].interpolate(method="linear")
-                    reindexed = reindexed.dropna(subset=[price_col])
-                    
-                    if not reindexed.empty:
-                        prices.append(reindexed[price_col].values)
-                        symbols_out.append(symbol)
-                
-                if not prices:
-                    return np.array([]), [], []
-                
-                # Trim to common length
-                min_len = min(len(p) for p in prices)
-                prices = [p[-min_len:] for p in prices]
-                timestamps = list(reindexed.index[-min_len:])
-                
-                return np.array(prices), symbols_out, timestamps
+                # No common timestamps — streams are completely desynchronized.
+                # Returning empty instead of interpolating fabricated prices,
+                # which would produce misleading z-scores and false signals.
+                return np.array([]), [], []
             
             # Use common timestamps
             common_idx_sorted = sorted(common_idx)

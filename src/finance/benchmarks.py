@@ -244,11 +244,11 @@ def zscore_from_prices(group: dict, price_map: Dict[str, float]) -> float:
         elif sym in price_map_exchange:
             price = price_map_exchange[sym]
         
-        if price is None:
+        if price is None or float(price) <= 0:
             return np.nan
-        
-        spread += float(w) * float(price)
-    
+
+        spread += float(w) * np.log(float(price))
+
     if std_ and std_ > 0:
         return (spread - mean_) / std_
     

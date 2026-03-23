@@ -144,6 +144,9 @@ class TradingPartner:
         min_spread_notional: float = MIN_SPREAD_NOTIONAL,
         max_spread_positions: int = MAX_SPREAD_POSITIONS,
         buying_power_buffer: float = 0.9,
+        max_loss_per_spread: float = 50.0,
+        reentry_cooldown_secs: float = 300.0,
+        fee_rate: float = 0.0005,
     ) -> None:
         """
         Initialize the trading partner
@@ -154,11 +157,14 @@ class TradingPartner:
             min_spread_notional: Minimum USD per leg (avoid dust orders)
             max_spread_positions: Maximum number of spread positions
             buying_power_buffer: Use 90% of buying power (10% buffer for fees)
+            max_loss_per_spread: Force-exit a spread if unrealized loss exceeds this ($)
+            reentry_cooldown_secs: Seconds to wait before re-entering a spread after exit
+            fee_rate: Per-side taker fee rate (default: 0.05% = Kraken Futures)
         """
         self.crypto_trader = CCXTFuturesTrader(testnet=paper)
         self.paper = paper
         self.symbols: List[str] = []
-        
+
         # ----- load benchmarks if available -----
         self.benchmarks: Optional[Dict] = None
         try:
@@ -167,59 +173,67 @@ class TradingPartner:
                 logger.warning("⚠️ Benchmark data is stale (>7 days). Consider recomputing.")
         except FileNotFoundError:
             logger.warning("⚠️ No benchmarks file found. Spread trading disabled.")
-        
+
         self.spread_engine: Optional[SpreadSignalEngine] = None
         self.rolling_buffer: Optional[RollingCointegrationBuffer] = None
         self._spread_positions: Dict[str, SpreadPosition] = {}
-        
+
         # ----- trading parameters for spread trades -----
         self.spread_notional = spread_notional
         self.min_spread_notional = min_spread_notional
         self.max_spread_positions = max_spread_positions
         self.buying_power_buffer = buying_power_buffer
-        
+
+        # ----- risk management -----
+        self.max_loss_per_spread = max_loss_per_spread
+        self.reentry_cooldown_secs = reentry_cooldown_secs
+        self.fee_rate = fee_rate
+        self._last_exit_time: Dict[str, datetime] = {}  # group_id -> last exit time
+
         mode_str = "TESTNET" if paper else "PRODUCTION"
         logger.info(f"Initialized TradingPartner ({mode_str} mode)")
 
 
-    def _calculate_spread_notional(self, num_legs: int) -> Optional[float]:
+    def _calculate_spread_notional(self, weights: Dict[str, float]) -> Optional[float]:
         """
-        Calculate the actual notional per leg based on available buying power.
-        
-        Scales down from target notional if insufficient buying power.
-        Returns None if buying power is below minimum threshold.
-        
+        Calculate the actual notional per spread based on available buying power.
+
+        Accounts for weight magnitudes: each leg's notional is base_notional * |weight|,
+        so total spend = base_notional * sum(|weights|). This prevents overspending
+        when hedge ratios are far from 1.0.
+
         Args:
-            num_legs: Number of assets in the spread
-            
+            weights: Dict of {asset: weight} for the spread
+
         Returns:
-            float: Actual notional per leg, or None if insufficient funds
-            
-        Example:
-            >>> notional = self._calculate_spread_notional(2)
-            >>> if notional is None:
-            ...     print("Insufficient funds")
+            float: Base notional to multiply by |weight| per leg, or None if insufficient funds
         """
+        total_weight = sum(abs(w) for w in weights.values())
+        if total_weight == 0:
+            return None
+
         buying_power = self._get_available_buying_power()
-        total_notional_needed = self.spread_notional * num_legs
-        
+        total_notional_needed = self.spread_notional * total_weight
+
         if buying_power >= total_notional_needed:
             return self.spread_notional
-        
+
         usable_power = buying_power * self.buying_power_buffer
-        actual_notional = usable_power / num_legs
-        
-        if actual_notional < self.min_spread_notional:
+        actual_notional = usable_power / total_weight
+
+        min_leg_notional = min(actual_notional * abs(w) for w in weights.values())
+        if min_leg_notional < self.min_spread_notional:
             logger.warning(
                 f"⚠️ Insufficient buying power: ${buying_power:.2f} available, "
-                f"need at least ${self.min_spread_notional * num_legs:.2f} "
-                f"(min ${self.min_spread_notional:.2f}/leg × {num_legs} legs)"
+                f"need ${total_notional_needed:.2f} (weight sum={total_weight:.2f}), "
+                f"smallest leg would be ${min_leg_notional:.2f} < min ${self.min_spread_notional:.2f}"
             )
             return None
-        
+
         logger.info(
-            f"💰 Scaling spread notional: ${self.spread_notional:.2f} -> ${actual_notional:.2f} per leg "
-            f"(buying power: ${buying_power:.2f})"
+            f"💰 Scaling spread notional: ${self.spread_notional:.2f} -> ${actual_notional:.2f} base "
+            f"(weight sum={total_weight:.2f}, total=${actual_notional * total_weight:.2f}, "
+            f"buying power: ${buying_power:.2f})"
         )
 
         return actual_notional
@@ -467,7 +481,7 @@ class TradingPartner:
             weights = signal.weights
             
             # Check buying power and calculate actual notional per leg
-            actual_notional = self._calculate_spread_notional(len(assets))
+            actual_notional = self._calculate_spread_notional(weights)
             if actual_notional is None:
                 logger.warning(f"⚠️ Skipping LONG spread {group_id}: insufficient buying power")
                 return False
@@ -512,44 +526,40 @@ class TradingPartner:
                 
                 leg_notionals[asset] = leg_notional
 
+                # Compute qty from cached price to avoid re-fetching (race condition fix)
+                target_qty = leg_notional / price
+
                 # ----- execute futures orders -----
-                # Store actual filled quantity and price from order response
                 if is_long:
                     order = self.crypto_trader.open_long(
                         symbol=asset,
-                        notional=leg_notional
+                        qty=target_qty,
                     )
                     if order is None:
                         logger.error(f"❌ LONG order failed for {asset}, aborting spread entry")
-                        # Rollback: close any already-opened positions using their tracked quantities
                         for opened_asset in opened_assets:
                             rollback_qty = quantities.get(opened_asset, 0)
                             rollback_side = 'long' if rollback_qty > 0 else 'short'
                             logger.info(f"🔄 Rolling back: closing {opened_asset} ({rollback_side} {abs(rollback_qty):.6f})")
                             self.crypto_trader.reduce_position(opened_asset, abs(rollback_qty), rollback_side)
                         return False
-                    # Use actual filled quantity and price from order
                     quantities[asset] = order.amount
-                    # Use fill price if available, otherwise fall back to streaming price
                     entry_prices[asset] = order.price if order.price else price
                     logger.info(f"(LONG) 🟢 LONG {asset}: qty={order.amount:.6f} @ ${entry_prices[asset]:.2f} (${leg_notional:.2f}, weight: {weight:.3f})")
                 else:
                     order = self.crypto_trader.open_short(
                         symbol=asset,
-                        notional=leg_notional
+                        qty=target_qty,
                     )
                     if order is None:
                         logger.error(f"❌ SHORT order failed for {asset}, aborting spread entry")
-                        # Rollback: close any already-opened positions using their tracked quantities
                         for opened_asset in opened_assets:
                             rollback_qty = quantities.get(opened_asset, 0)
                             rollback_side = 'long' if rollback_qty > 0 else 'short'
                             logger.info(f"🔄 Rolling back: closing {opened_asset} ({rollback_side} {abs(rollback_qty):.6f})")
                             self.crypto_trader.reduce_position(opened_asset, abs(rollback_qty), rollback_side)
                         return False
-                    # Use actual filled quantity and price from order (negative qty for short)
                     quantities[asset] = -order.amount
-                    # Use fill price if available, otherwise fall back to streaming price
                     entry_prices[asset] = order.price if order.price else price
                     logger.info(f"(LONG) 🔴 SHORT {asset}: qty={order.amount:.6f} @ ${entry_prices[asset]:.2f} (${leg_notional:.2f}, weight: {weight:.3f})")
                 
@@ -615,7 +625,7 @@ class TradingPartner:
             weights = signal.weights
             
             # Check buying power and calculate actual notional per leg
-            actual_notional = self._calculate_spread_notional(len(assets))
+            actual_notional = self._calculate_spread_notional(weights)
             if actual_notional is None:
                 logger.warning(f"⚠️ Skipping SHORT spread {group_id}: insufficient buying power")
                 return False
@@ -659,45 +669,41 @@ class TradingPartner:
                     return False
                 
                 leg_notionals[asset] = leg_notional
-            
+
+                # Compute qty from cached price to avoid re-fetching (race condition fix)
+                target_qty = leg_notional / price
+
                 # ----- execute futures orders -----
-                # Store actual filled quantity and price from order response
                 if is_short:
                     order = self.crypto_trader.open_short(
                         symbol=asset,
-                        notional=leg_notional
+                        qty=target_qty,
                     )
                     if order is None:
                         logger.error(f"❌ SHORT order failed for {asset}, aborting spread entry")
-                        # Rollback: close any already-opened positions using their tracked quantities
                         for opened_asset in opened_assets:
                             rollback_qty = quantities.get(opened_asset, 0)
                             rollback_side = 'long' if rollback_qty > 0 else 'short'
                             logger.info(f"🔄 Rolling back: closing {opened_asset} ({rollback_side} {abs(rollback_qty):.6f})")
                             self.crypto_trader.reduce_position(opened_asset, abs(rollback_qty), rollback_side)
                         return False
-                    # Use actual filled quantity and price from order (negative qty for short)
                     quantities[asset] = -order.amount
-                    # Use fill price if available, otherwise fall back to streaming price
                     entry_prices[asset] = order.price if order.price else price
                     logger.info(f"(SHORT) 🔴 SHORT {asset}: qty={order.amount:.6f} @ ${entry_prices[asset]:.2f} (${leg_notional:.2f}, weight: {weight:.3f})")
                 else:
                     order = self.crypto_trader.open_long(
                         symbol=asset,
-                        notional=leg_notional
+                        qty=target_qty,
                     )
                     if order is None:
                         logger.error(f"❌ LONG order failed for {asset}, aborting spread entry")
-                        # Rollback: close any already-opened positions using their tracked quantities
                         for opened_asset in opened_assets:
                             rollback_qty = quantities.get(opened_asset, 0)
                             rollback_side = 'long' if rollback_qty > 0 else 'short'
                             logger.info(f"🔄 Rolling back: closing {opened_asset} ({rollback_side} {abs(rollback_qty):.6f})")
                             self.crypto_trader.reduce_position(opened_asset, abs(rollback_qty), rollback_side)
                         return False
-                    # Use actual filled quantity and price from order
                     quantities[asset] = order.amount
-                    # Use fill price if available, otherwise fall back to streaming price
                     entry_prices[asset] = order.price if order.price else price
                     logger.info(f"(SHORT) 🟢 LONG {asset}: qty={order.amount:.6f} @ ${entry_prices[asset]:.2f} (${leg_notional:.2f}, weight: {weight:.3f})")
                 
@@ -758,18 +764,17 @@ class TradingPartner:
         
         try:
             position = self._spread_positions[group_id]
-            
-            # Close each leg using the EXACT quantity from when we opened
-            # This preserves quantities from other spread positions that share these symbols
+
+            # Close each leg using the EXACT quantity from when we opened.
+            # Track failures so we don't orphan positions on the exchange.
+            failed_assets = []
             for asset in position.assets:
                 qty = position.quantities.get(asset, 0)
                 if qty == 0:
-                    logger.warning(f"⚠️ Zero quantity for {asset} in {group_id}")
                     continue
-                
-                # Determine side based on sign: positive = long, negative = short
+
                 side = 'long' if qty > 0 else 'short'
-                
+
                 order = self.crypto_trader.reduce_position(
                     symbol=asset,
                     qty=abs(qty),
@@ -777,19 +782,35 @@ class TradingPartner:
                 )
                 if order:
                     logger.info(f"🔚 Closed {asset}: {side} {abs(qty):.6f}")
+                    position.quantities[asset] = 0  # mark leg as closed
                 else:
-                    logger.warning(f"⚠️ Failed to close {asset} for {group_id}")
-            
+                    logger.error(f"❌ Failed to close {asset} for {group_id}")
+                    failed_assets.append(asset)
+
             position.update_pnl(price_map)
+
+            if failed_assets:
+                # Keep the position tracked with remaining (unclosed) quantities
+                # so the next cycle can retry closing them.
+                logger.error(
+                    f"❌ Partial exit for {group_id}: failed to close {failed_assets}. "
+                    f"Position kept for retry. Remaining quantities: "
+                    f"{({a: position.quantities[a] for a in failed_assets})}"
+                )
+                return False
+
             logger.info(f"🔚 Closed spread {group_id}: P&L=${position.unrealized_pnl:.2f} | Reason: {reason}")
             del self._spread_positions[group_id]
-            
+
+            # Record exit time for cooldown (ARCH 2)
+            self._last_exit_time[group_id] = datetime.now()
+
             # ----- update spread engine position state -----
             if self.spread_engine:
                 self.spread_engine.set_position(group_id, None)
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ Error closing spread {group_id}: {e}")
             return False
@@ -878,22 +899,46 @@ class TradingPartner:
                     continue
                 
                 logger.info(f"📊 Spread {signal.group_id}: z={signal.zscore:.2f} -> {signal.signal_type.value} (conf={signal.confidence:.2f})")
-                
-                # ===== EXECUTE TRADES =====
-                if signal.signal_type == SignalType.BUY_SPREAD:
-                    if len(self._spread_positions) < self.max_spread_positions:
-                        self._enter_spread_long(signal, price_map)
 
-                    else:
+                # ===== EXECUTE TRADES =====
+                if signal.signal_type in (SignalType.BUY_SPREAD, SignalType.SELL_SPREAD):
+                    # --- ARCH 2: Re-entry cooldown check ---
+                    last_exit = self._last_exit_time.get(signal.group_id)
+                    if last_exit is not None:
+                        elapsed = (datetime.now() - last_exit).total_seconds()
+                        if elapsed < self.reentry_cooldown_secs:
+                            logger.info(
+                                f"⏳ Cooldown active for {signal.group_id}: "
+                                f"{elapsed:.0f}s / {self.reentry_cooldown_secs:.0f}s"
+                            )
+                            continue
+
+                    # --- ARCH 3: Transaction cost filter ---
+                    # Expected profit ≈ (|z| - exit_z) * spread_std
+                    # Round-trip cost ≈ 4 * fee_rate * notional (2 legs × 2 sides)
+                    exit_z = self.spread_engine.exit_zscore if self.spread_engine else 0.5
+                    expected_profit_z = abs(signal.zscore) - exit_z
+                    if expected_profit_z > 0 and signal.spread_std > 0:
+                        total_weight = sum(abs(w) for w in signal.weights.values())
+                        est_notional = self.spread_notional * total_weight
+                        round_trip_cost = 4 * self.fee_rate * est_notional
+                        expected_profit_usd = expected_profit_z * signal.spread_std * est_notional
+                        if expected_profit_usd < round_trip_cost:
+                            logger.info(
+                                f"💸 Skipping {signal.group_id}: expected profit "
+                                f"${expected_profit_usd:.2f} < fees ${round_trip_cost:.2f}"
+                            )
+                            continue
+
+                    if len(self._spread_positions) >= self.max_spread_positions:
                         logger.info(f"⚠️ Max spread positions ({self.max_spread_positions}) reached")
-                        
-                elif signal.signal_type == SignalType.SELL_SPREAD:
-                    if len(self._spread_positions) < self.max_spread_positions:
+                        continue
+
+                    if signal.signal_type == SignalType.BUY_SPREAD:
+                        self._enter_spread_long(signal, price_map)
+                    else:
                         self._enter_spread_short(signal, price_map)
-                        
-                    else:
-                        logger.info(f"⚠️ Max spread positions ({self.max_spread_positions}) reached")
-                        
+
                 elif signal.signal_type == SignalType.EXIT:
                     if signal.group_id in self._spread_positions:
                         self._exit_spread(signal.group_id, price_map, "Signal EXIT")
@@ -920,26 +965,39 @@ class TradingPartner:
 
 
     def _update_spread_positions(self) -> None:
-        """Update current prices and P&L for all spread positions."""
+        """Update current prices, P&L, and check stop-loss for all spread positions."""
         if not self._spread_positions:
             return
-        
+
         # ----- get current prices -----
         price_map = {}
         for symbol in self.symbols:
             p = self.crypto_trader.get_latest_price(symbol)
             if p is not None:
                 price_map[symbol] = float(p)
-        
+
         # ----- get current z-scores -----
         zscores = {}
         if self.spread_engine:
             zscores = self.spread_engine.get_all_zscores()
-        
-        # ----- update each position -----
+
+        # ----- update each position and check stop-loss -----
+        stop_loss_exits = []
         for group_id, position in self._spread_positions.items():
             current_zscore = zscores.get(group_id)
             position.update_pnl(price_map, current_zscore)
+
+            # ARCH 1: Position-level stop-loss
+            if position.unrealized_pnl < -self.max_loss_per_spread:
+                logger.warning(
+                    f"🛑 STOP-LOSS triggered for {group_id}: "
+                    f"P&L=${position.unrealized_pnl:.2f} < -${self.max_loss_per_spread:.2f}"
+                )
+                stop_loss_exits.append(group_id)
+
+        # Execute stop-loss exits outside the iteration loop
+        for group_id in stop_loss_exits:
+            self._exit_spread(group_id, price_map, f"STOP-LOSS (max loss ${self.max_loss_per_spread:.2f})")
 
 
     # ==================================================
@@ -948,7 +1006,7 @@ class TradingPartner:
 
 
     def start_streaming_bot(
-        self, 
+        self,
         symbols: List[str] = None,
         lookback_bars: int = 500,
         duration_minutes: int = 30,
@@ -956,6 +1014,7 @@ class TradingPartner:
         entry_zscore: float = 2.0,
         exit_zscore: float = 0.5,
         cycle_interval: int = 30,
+        max_zscore: float = 10.0,
     ):
         """
         Start the live trading bot for a fixed duration.
@@ -1010,6 +1069,7 @@ class TradingPartner:
                     benchmarks=self.benchmarks,
                     entry_zscore=entry_zscore,
                     exit_zscore=exit_zscore,
+                    max_zscore=max_zscore,
                     max_groups=max_stream_symbols,
                     available_symbols=available_perpetuals if available_perpetuals else None,
                 )

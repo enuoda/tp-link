@@ -1,9 +1,11 @@
 {
   "version": "1.3",
-  "computed_at_utc": "2026-01-08T20:22:32.595865+00:00",
+  "computed_at_utc": "2026-03-23T00:10:16.346308+00:00",
   "computed_on_exchange": "kraken",
   "computed_on_testnet": true,
   "universe": [
+    "BTC",
+    "ETH",
     "SOL",
     "XRP",
     "LTC",
@@ -16,163 +18,287 @@
     "DOGE",
     "ADA"
   ],
-  "lookback_days": 2,
-  "p_threshold": 0.2,
+  "lookback_days": 30,
+  "p_threshold": 0.05,
   "cointegration_groups": [
     {
-      "id": "SOL-LINK",
+      "id": "BTC-SOL",
       "assets": [
-        "SOL",
-        "LINK"
+        "BTC",
+        "SOL"
       ],
-      "method": "EngleGranger",
+      "method": "EngleGranger_LogPrice",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "SOL": -0.08246545694614954,
-            "LINK": 1.0
+            "BTC": -0.2245850243684341,
+            "SOL": 1.0
           },
-          "spread_mean": 2.31751290728222,
-          "spread_std": 0.04500356913514146,
-          "half_life": 2.838151478980851,
+          "spread_mean": 1.9578701376872965,
+          "spread_std": 0.04435813577931714,
+          "half_life": 2.5303459944952778,
           "test_stats": {
-            "t_stat": -4.0659097564175894
+            "t_stat": -21.221874521259625,
+            "oos_mean_z": 1.3942981841397788,
+            "oos_std_ratio": 1.0045631513986648
           },
-          "p_value": 0.005770916265165129
+          "p_value": 0.0
         }
       ],
-      "selection_score": 2.211705702322468,
+      "selection_score": 3.9520287034875152,
       "notes": ""
     },
     {
-      "id": "LTC-DOT",
+      "id": "BTC-ETH",
+      "assets": [
+        "BTC",
+        "ETH"
+      ],
+      "method": "EngleGranger_LogPrice",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.2223790653018143,
+            "ETH": 1.0
+          },
+          "spread_mean": 5.1476549192250625,
+          "spread_std": 0.05240167790824348,
+          "half_life": 2.6623908594484678,
+          "test_stats": {
+            "t_stat": -21.659159341986356,
+            "oos_mean_z": 2.227044937996738,
+            "oos_std_ratio": 1.3156281222224027
+          },
+          "p_value": 0.0
+        }
+      ],
+      "selection_score": 3.75602251056089,
+      "notes": ""
+    },
+    {
+      "id": "BTC-AVAX",
+      "assets": [
+        "BTC",
+        "AVAX"
+      ],
+      "method": "EngleGranger_LogPrice",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.22659084603904725,
+            "AVAX": 1.0
+          },
+          "spread_mean": -0.2906751081034544,
+          "spread_std": 0.048280502347926024,
+          "half_life": 2.718771630251915,
+          "test_stats": {
+            "t_stat": -14.187897802411563,
+            "oos_mean_z": 1.3368515290867466,
+            "oos_std_ratio": 1.0833370906082282
+          },
+          "p_value": 1.7320947557213197e-25
+        }
+      ],
+      "selection_score": 3.67813165649129,
+      "notes": ""
+    },
+    {
+      "id": "BTC-LINK",
+      "assets": [
+        "BTC",
+        "LINK"
+      ],
+      "method": "EngleGranger_LogPrice",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.18577334653886982,
+            "LINK": 1.0
+          },
+          "spread_mean": 0.12674982267899165,
+          "spread_std": 0.040338681915664816,
+          "half_life": 3.121599242344809,
+          "test_stats": {
+            "t_stat": -11.11362773345824,
+            "oos_mean_z": 1.0995133937228645,
+            "oos_std_ratio": 1.2534076890659083
+          },
+          "p_value": 4.436535048187258e-19
+        }
+      ],
+      "selection_score": 3.203486169636701,
+      "notes": ""
+    },
+    {
+      "id": "BTC-LTC",
+      "assets": [
+        "BTC",
+        "LTC"
+      ],
+      "method": "EngleGranger_LogPrice",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.12222780519369278,
+            "LTC": 1.0
+          },
+          "spread_mean": 2.6422686851527133,
+          "spread_std": 0.028767546334079706,
+          "half_life": 4.930818181176906,
+          "test_stats": {
+            "t_stat": -5.972177747537199,
+            "oos_mean_z": 1.0201328825203446,
+            "oos_std_ratio": 1.0165086945567838
+          },
+          "p_value": 1.8636796662242735e-06
+        }
+      ],
+      "selection_score": 1.1620036518538819,
+      "notes": ""
+    },
+    {
+      "id": "LTC-LINK",
       "assets": [
         "LTC",
-        "DOT"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "LTC": -0.0675481852627169,
-            "DOT": 1.0
-          },
-          "spread_mean": -3.4376674856412546,
-          "spread_std": 0.008489906899947585,
-          "half_life": 11.785457025171436,
-          "test_stats": {
-            "t_stat": -3.897691200204821
-          },
-          "p_value": 0.009992394529193765
-        }
-      ],
-      "selection_score": 2.0598030345406624,
-      "notes": ""
-    },
-    {
-      "id": "DOGE-ADA",
-      "assets": [
-        "DOGE",
-        "ADA"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "DOGE": -2.461497178378304,
-            "ADA": 1.0
-          },
-          "spread_mean": 0.04828115459587075,
-          "spread_std": 0.001112841477350786,
-          "half_life": 6.037468962755388,
-          "test_stats": {
-            "t_stat": -3.5956520335961923
-          },
-          "p_value": 0.024806722500834395
-        }
-      ],
-      "selection_score": 2.1161782144872885,
-      "notes": ""
-    },
-    {
-      "id": "AVAX-ATOM",
-      "assets": [
-        "AVAX",
-        "ATOM"
-      ],
-      "method": "EngleGranger",
-      "rank": 1,
-      "vectors": [
-        {
-          "weights": {
-            "AVAX": -0.34315356185675505,
-            "ATOM": 1.0
-          },
-          "spread_mean": -2.5377677863416395,
-          "spread_std": 0.027863260949417563,
-          "half_life": 15.25995021785553,
-          "test_stats": {
-            "t_stat": -3.119181699835694
-          },
-          "p_value": 0.08451480228090769
-        }
-      ],
-      "selection_score": 1.9498780558195525,
-      "notes": ""
-    },
-    {
-      "id": "AVAX-LINK",
-      "assets": [
-        "AVAX",
         "LINK"
       ],
-      "method": "EngleGranger",
+      "method": "EngleGranger_LogPrice",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "AVAX": -1.0316799655643267,
+            "LTC": -1.218822447110844,
             "LINK": 1.0
           },
-          "spread_mean": -1.2167456022149765,
-          "spread_std": 0.06578754009261993,
-          "half_life": 11.39758557056022,
+          "spread_mean": -2.6838391093426344,
+          "spread_std": 0.016656369347967007,
+          "half_life": 1.9851625635513388,
           "test_stats": {
-            "t_stat": -3.041048163304206
+            "t_stat": -5.618021390394499,
+            "oos_mean_z": 0.43528026999164937,
+            "oos_std_ratio": 1.381123432005859
           },
-          "p_value": 0.10076774144814482
+          "p_value": 1.0325850614222381e-05
         }
       ],
-      "selection_score": 1.9181664326707484,
+      "selection_score": 2.5116704565157573,
       "notes": ""
     },
     {
-      "id": "AVAX-DOT",
+      "id": "BTC-XRP",
       "assets": [
-        "AVAX",
-        "DOT"
+        "BTC",
+        "XRP"
       ],
-      "method": "EngleGranger",
+      "method": "EngleGranger_LogPrice",
       "rank": 1,
       "vectors": [
         {
           "weights": {
-            "AVAX": -0.15344324278463412,
-            "DOT": 1.0
+            "BTC": -0.10138425695743042,
+            "XRP": 1.0
           },
-          "spread_mean": -0.027525852395467565,
-          "spread_std": 0.01878570558871158,
-          "half_life": 30.45112340432376,
+          "spread_mean": -0.789835733925226,
+          "spread_std": 0.033113273777326244,
+          "half_life": 4.473174678271829,
           "test_stats": {
-            "t_stat": -2.9440910522198838
+            "t_stat": -5.053584539597266,
+            "oos_mean_z": 1.8609406259498147,
+            "oos_std_ratio": 1.36007717547875
           },
-          "p_value": 0.12410033971480017
+          "p_value": 0.00013106792263184227
         }
       ],
-      "selection_score": 1.889255716791789,
+      "selection_score": 0.8679525981288455,
+      "notes": ""
+    },
+    {
+      "id": "BTC-DOT",
+      "assets": [
+        "BTC",
+        "DOT"
+      ],
+      "method": "EngleGranger_LogPrice",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.1848642262625584,
+            "DOT": 1.0
+          },
+          "spread_mean": -1.6625879425986825,
+          "spread_std": 0.06676349421984173,
+          "half_life": 15.970815448834523,
+          "test_stats": {
+            "t_stat": -4.416491439965926,
+            "oos_mean_z": 0.2583412734336215,
+            "oos_std_ratio": 0.6809173399254076
+          },
+          "p_value": 0.0016741984610967131
+        }
+      ],
+      "selection_score": 0.1738291366836843,
+      "notes": ""
+    },
+    {
+      "id": "BTC-ADA",
+      "assets": [
+        "BTC",
+        "ADA"
+      ],
+      "method": "EngleGranger_LogPrice",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BTC": -0.022383919055336862,
+            "ADA": 1.0
+          },
+          "spread_mean": -1.5598409655945646,
+          "spread_std": 0.04175295920790598,
+          "half_life": 5.705235235997827,
+          "test_stats": {
+            "t_stat": -4.172117911720136,
+            "oos_mean_z": 0.0845916727596091,
+            "oos_std_ratio": 0.9670523079111615
+          },
+          "p_value": 0.004018973831554198
+        }
+      ],
+      "selection_score": 0.41994496676860155,
+      "notes": ""
+    },
+    {
+      "id": "BCH-ATOM",
+      "assets": [
+        "BCH",
+        "ATOM"
+      ],
+      "method": "EngleGranger_LogPrice",
+      "rank": 1,
+      "vectors": [
+        {
+          "weights": {
+            "BCH": -1.1924899212509716,
+            "ATOM": 1.0
+          },
+          "spread_mean": -6.691226465357441,
+          "spread_std": 0.04351088670852632,
+          "half_life": 21.24409511120338,
+          "test_stats": {
+            "t_stat": -4.126338148598217,
+            "oos_mean_z": -0.2973403754267347,
+            "oos_std_ratio": 0.64702423916734
+          },
+          "p_value": 0.004703936254252942
+        }
+      ],
+      "selection_score": 0.10956167161193972,
       "notes": ""
     }
   ],

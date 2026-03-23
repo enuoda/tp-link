@@ -1,354 +1,609 @@
-# Live Trading System
+I will evaluate this the way a referee or editor for **Physical Review E** typically reads a **Methods/Simulation section**: quickly checking whether
 
-A quantitative cryptocurrency trading system using cointegration-based pairs trading via the Alpaca API.
+1. the simulation protocol is **reproducible**,
+2. the description is **technically correct**, and
+3. the prose is **tight and efficient** (PRE strongly prefers concise methods).
 
-## Overview
+Your section is **scientifically solid and thorough**, but in its current form it would likely receive the editorial comment:
 
-This system identifies statistically cointegrated cryptocurrency pairs, monitors their spread in real-time, and executes mean-reversion trades when the spread deviates significantly from its historical mean (measured by z-score).
+> “The simulation description is clear but somewhat verbose and could be streamlined.”
 
-**Key Features:**
-- Real-time WebSocket streaming from Alpaca
-- Cointegration-based pairs trading signals
-- Per-symbol staleness thresholds based on liquidity
-- Heartbeat monitoring for zombie connection detection
-- Graceful shutdown with position closing
-- Paper trading support for testing
+The main issues are:
 
----
+* **Redundancy about EDMD basics**
+* **Excessive narrative detail**
+* **Overly long sentences**
+* **Minor organizational inefficiencies**
+* **One or two stylistic issues that PRE editors routinely flag**
 
-## Directory Structure
-
-```
-tp-link/
-├── main.py                          # Primary entry point (CLI)
-├── data/
-│   └── benchmarks/                  # Saved cointegration benchmarks
-└── src/
-    ├── __init__.py                  # Environment variables loader
-    ├── finance/
-    │   ├── __init__.py              # Constants, tickers, staleness profiles
-    │   ├── benchmarks.py            # Load/save cointegration benchmarks
-    │   ├── crypto.py                # CryptoTrader - Alpaca API interface
-    │   ├── trading_bot.py  # TradingPartner - trading logic
-    │   ├── rolling_buffer.py        # Real-time data buffer
-    │   └── spread_engine.py         # Signal generation engine
-    └── trading_strategy/
-        ├── compute_benchmarks.py    # Cointegration computation
-        └── cointegration_utils.py   # Statistical test utilities
-```
+Below is a **detailed critique followed by a near-publishable rewrite.**
 
 ---
 
-## File Descriptions
+# 1. Opening Paragraph — Too Much Historical Framing
 
-### `main.py`
-The command-line interface and main entry point. Supports multiple modes:
-- `trade-indefinite`: Run live trading until Ctrl+C
-- `trade`: Run live trading for a fixed duration
-- `monitor`: Stream prices without trading
-- `compute-benchmarks`: Compute cointegration pairs
-- `account`: Display Alpaca account info
+Current opening:
 
-### `src/finance/__init__.py`
-Contains:
-- `CRYPTO_TICKERS`: List of 20 supported cryptocurrencies
-- `TIME_FRAMES`: Mapping of time scale strings to Alpaca TimeFrame objects
-- `STALENESS_PROFILES`: Per-symbol staleness thresholds by liquidity tier
-- `get_staleness_for_symbol()`, `get_staleness_for_pair()`: Staleness utilities
+> Event-driven MD (EDMD) simulations have been in use as early as the pioneering work of Alder and Wainwright...
 
-### `src/finance/crypto.py`
-The `CryptoTrader` class - core interface to Alpaca API:
-- WebSocket streaming with auto-reconnection
-- Heartbeat monitoring for zombie connections
-- Price caching and staleness tracking
-- Order submission (market, limit, stop, trailing stop)
-- Historical data retrieval
+This is **not wrong**, but PRE methods sections usually start **more directly with the simulation setup**.
 
-### `src/finance/trading_bot.py`
-The `TradingPartner` class - orchestrates trading:
-- Connects streaming to signal engine
-- Executes spread trades based on signals
-- Manages spread positions (entry, exit, P&L tracking)
-- Handles emergency exits for stale data
+You do not need to justify EDMD historically.
 
-### `src/finance/spread_engine.py`
-The `SpreadSignalEngine` class - generates trading signals:
-- Computes z-scores from live prices and benchmark parameters
-- Emits `BUY_SPREAD`, `SELL_SPREAD`, `EXIT`, `EMERGENCY_EXIT` signals
-- Uses per-pair staleness thresholds based on asset liquidity
+### Suggested opening
 
-### `src/finance/benchmarks.py`
-Utilities for cointegration benchmark files:
-- `load_benchmarks()`: Load from JSON
-- `save_benchmarks()`: Save to JSON
-- `is_stale()`: Check if benchmarks need refresh
-- `get_weights()`, `get_spread_params()`: Extract trading parameters
+> We perform event-driven molecular dynamics (EDMD) simulations of hard spheres in one, two, and three spatial dimensions.
 
-### `src/finance/rolling_buffer.py`
-`RollingCointegrationBuffer` for accumulating streaming bar data:
-- Thread-safe data storage
-- Time-aligned arrays for analysis
-- Staleness tracking per symbol
+Then briefly cite the algorithm.
 
-### `src/trading_strategy/compute_benchmarks.py`
-Functions to compute cointegration benchmarks:
-- Fetches historical data
-- Runs pairwise cointegration tests
-- Computes hedge ratios and spread statistics
-- Saves results to JSON
-
-### `src/trading_strategy/cointegration_utils.py`
-Statistical utilities:
-- `run_pairwise_cointegration()`: Engle-Granger test
-- `check_higher_order_cointegration()`: Johansen test
+PRE editors generally prefer **short, declarative openings**.
 
 ---
 
-<!-- ## Environment Setup
+# 2. EDMD Description — Slightly Overexplained
 
-### Required Environment Variables
+Your explanation of EDMD is technically correct but longer than necessary.
 
-```bash
-export ALPACA_API_KEY='your_api_key'
-export ALPACA_SECRET_KEY='your_secret_key'
-```
+For example:
 
-Or create a `.env` file in the project root:
+> Due to the singular nature of hard-sphere interaction potential...
 
-```
-ALPACA_API_KEY=your_api_key
-ALPACA_SECRET_KEY=your_secret_key
-```
+This can be shortened considerably because **most PRE readers already know EDMD basics**.
 
-### Dependencies
+Also:
 
-```bash
-pip install alpaca-py numpy pandas statsmodels python-dotenv matplotlib
-``` -->
+> collision times are computed by quickly solving a quadratic equation
+
+“quickly” is unnecessary.
 
 ---
 
-## Usage Examples
+### Suggested rewrite
 
-### 1. Compute Cointegration Benchmarks
+> Because the hard-sphere interaction potential is discontinuous, particle trajectories consist of ballistic motion punctuated by instantaneous binary collisions. The simulation advances directly from one collision event to the next, with collision times determined by solving a quadratic equation for the time at which two particles first overlap.
 
-Before trading, you need cointegration benchmarks. This writes `data/benchmarks/benchmarks_YYYY-WW.json` and updates `data/benchmarks/benchmarks_latest.json`. Live trading will automatically load the latest benchmarks and evaluate spread z-scores. If no benchmarks are present or are stale (>7 days), the bot falls back to a simple momentum preview.
+This conveys the same information **in fewer words**.
+
+---
+
+# 3. A Small but Important PRE Style Point
+
+You wrote:
+
+> Since hard spheres are athermal, the total energy of the system is fixed at the start of the simulation...
+
+This is **not quite precise**.
+
+Hard spheres are **athermal in configurational interactions**, but kinetic energy still defines temperature in the microcanonical ensemble.
+
+A safer formulation is:
+
+> Because hard-sphere interactions contain no intrinsic energy scale, the total kinetic energy is fixed by the initial velocity distribution.
+
+---
+
+# 4. Algorithm Reference Placement
+
+Current:
+
+> We employ the event-driven MD (EDMD) algorithm developed by Donev, et al.,
+
+PRE style prefers:
+
+> We employ the event-driven molecular dynamics algorithm of Donev *et al.* \cite{Do05a}.
+
+Avoid repeating **EDMD** again.
+
+---
+
+# 5. System Initialization Paragraph — Too Dense
+
+This paragraph currently contains **too many concepts in one sentence**:
+
+* particle placement
+* packing fraction
+* periodic box
+* dimensionality
+* mass choice
+* configuration classes
+
+Break it into **two sentences**.
+
+---
+
+### Example rewrite
+
+> Systems consist of (N) particles of diameter (\sigma) and unit mass contained in a periodic hypercubic cell of side length (L), corresponding to packing fraction (\phi). Initial particle configurations span a wide class of ordered and disordered structures summarized in Table \ref{tab:initial_conditions} and described in Sec. \ref{sec:initial_conditions}.
+
+---
+
+# 6. Configuration Listing — Slightly Hard to Read
+
+Currently you list configurations in long sentences.
+
+Better structure:
+
+* one short sentence per dimension.
 
 Example:
 
-```bash
-# Basic benchmark computation (30 days, hourly bars)
-python main.py --mode compute-benchmarks
+> In (d=1) we consider configurations derived from an integer lattice, disordered stealthy hyperuniform (SHU) configurations with (\chi=0.1), and packings generated by the random sequential addition (RSA) process.
 
-# With custom parameters
-python main.py --mode compute-benchmarks --days 30 --time-scale hour --max-groups 40 --p-threshold 0.15
-```
-
-**Arguments:**
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--days` | 30 | Historical lookback period |
-| `--time-scale` | hour | Bar timeframe (min, hour, day) |
-| `--max-groups` | 10 | Max cointegration pairs to keep |
-| `--p-threshold` | 0.10 | P-value threshold (higher = more pairs) |
+This improves readability.
 
 ---
 
-### 2. Monitor Prices (No Trading)
+# 7. Velocity Distribution Section — Scientifically Excellent
 
-Test WebSocket connectivity and data flow:
+This part is **one of the strongest aspects of the methods section**.
 
-```bash
-# Monitor for 10 minutes (default)
-python main.py --mode monitor
+However:
 
-# Monitor specific symbols for 30 minutes
-python main.py --mode monitor --symbols BTC/USD ETH/USD LTC/USD --duration 30
-```
+* the introductory sentence is too long
+* some phrases can be tightened
+* enumeration formatting can be improved
 
----
+Example issue:
 
-### 3. Live Trading (Indefinite)
+> that span a range of homogeneous and inhomogeneous distributions and rely on the temperature (k_B T)
 
-Run the trading bot until you press Ctrl+C:
+Simpler:
 
-```bash
-# Basic indefinite trading (paper mode)
-python main.py --mode trade-indefinite
-
-# With custom z-score thresholds (more conservative)
-python main.py --mode trade-indefinite --entry-zscore 2.5 --exit-zscore 0.3
-
-# With custom staleness thresholds
-python main.py --mode trade-indefinite --entry-staleness 60 --exit-staleness 600 --emergency-staleness 1800
-```
-
-**Trading Arguments:**
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--entry-zscore` | 2.0 | Z-score to trigger entry (lower = more trades) |
-| `--exit-zscore` | 0.5 | Z-score to trigger exit (higher = exit sooner) |
-| `--cycle-interval` | 30 | Seconds between trading cycles |
-| `--health-interval` | 15 | Minutes between health logs |
-| `--max-stream-symbols` | 10 | Max WebSocket subscriptions |
-
-**Staleness Arguments:**
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--entry-staleness` | 30 | Max data age (sec) for entries |
-| `--exit-staleness` | 300 | Max data age (sec) for exits |
-| `--emergency-staleness` | 900 | Force exit if data older than this |
-
-**Rolling Recalibration Arguments:**
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--recalibrate-interval` | 10 | Minutes between spread recalibrations |
-| `--recalibrate-min-obs` | 50 | Min price observations before recalibrating |
-
-```bash
-# With rolling recalibration every 5 minutes
-python main.py --mode trade-indefinite --recalibrate-interval 5
-
-# Disable rolling recalibration
-python main.py --mode trade-indefinite --recalibrate-interval 0
-```
+> characterized by a temperature scale (k_B T).
 
 ---
 
-### 4. Live Trading (Fixed Duration)
+# 8. Uniform Distribution Explanation
 
-Run for a specific time:
+Your explanation is good but slightly verbose.
 
-```bash
-# Trade for 60 minutes
-python main.py --mode trade --duration 60
+Current:
 
-# Trade for 2 hours with custom settings
-python main.py --mode trade --duration 120 --entry-zscore 1.8 --max-stream-symbols 5
-```
+> Components of the velocity vector for each particle are uniformly distributed on the interval...
 
----
+Simplify:
 
-### 5. Check Account Info
-
-```bash
-python main.py --mode account
-```
+> Each velocity component is drawn uniformly from the interval ([-\sqrt{3k_B T},\sqrt{3k_B T})), which ensures that the equilibrated velocity distribution corresponds to a Maxwellian at temperature (T).
 
 ---
 
-### 6. Live Trading (Real Money) ⚠️
+# 9. Impulse Distribution — Very Good Conceptually
 
-**Warning: This uses real money!**
+This is interesting and well explained.
 
-```bash
-python main.py --mode trade-indefinite --live
-```
+But two improvements would help:
 
-You will be prompted to confirm before proceeding.
+### A. Avoid informal wording
 
----
+> a ''hot'' center of particles embedded within a ''cold'' system
 
-## Trading Logic
+Better:
 
-### Signal Generation
+> a localized region of elevated kinetic energy embedded within a colder background.
 
-1. **Z-Score Calculation**: For each cointegrated pair, compute the spread and its z-score:
-   ```
-   spread = price_A * weight_A + price_B * weight_B
-   z-score = (spread - mean) / std
-   ```
-
-2. **Entry Signals**:
-   - `z-score >= entry_threshold` → `SELL_SPREAD` (expect spread to decrease)
-   - `z-score <= -entry_threshold` → `BUY_SPREAD` (expect spread to increase)
-
-3. **Exit Signals**:
-   - `|z-score| <= exit_threshold` → `EXIT` (spread reverted to mean)
-
-4. **Emergency Exit**:
-   - Data staleness exceeds threshold → `EMERGENCY_EXIT`
-
-### Staleness Tiers
-
-Staleness thresholds vary by asset liquidity:
-
-| Tier | Assets | Entry | Exit | Emergency |
-|------|--------|-------|------|-----------|
-| High | BTC, ETH, DOGE, SHIB | 15s | 60s | 5 min |
-| Medium | LTC, LINK, AVAX, DOT | 60s | 5 min | 15 min |
-| Low | BAT, YFI, SUSHI, CRV | 3 min | 10 min | 30 min |
-
-For pairs, the **most conservative** (shortest) threshold is used.
-
-### Rolling Recalibration
-
-Over time, the spread's mean and standard deviation can drift from the values computed during benchmarking. This causes z-scores to become systematically biased (e.g., always negative), reducing trading effectiveness.
-
-**Rolling recalibration** automatically updates the spread parameters from recent price observations:
-
-1. Each trading cycle, current prices are recorded into a rolling history
-2. Every N minutes (default: 10), the spread mean/std are recalculated
-3. Z-scores then reflect current market conditions, not stale benchmarks
-
-**Example output:**
-```
-📊 Running rolling recalibration...
-📊 Recalibration complete: 3/3 groups updated
-  BTC_ETH: mean shift=+12.4500, std change=-2.3%
-  LTC_LINK: mean shift=-8.2100, std change=+1.1%
-  DOT_AVAX: mean shift=+3.0800, std change=+0.5%
-```
-
-**When to use:**
-- If z-scores are consistently one-sided (always positive or always negative)
-- For long-running trading sessions (hours/days)
-- When market conditions are volatile
+### B. Slightly tighten the geometry description.
 
 ---
 
-### Example Output
+# 10. The Summary Sentence Needs Correction
 
-```
-2025-01-15 10:30:00 - INFO - 🚀 STARTING INDEFINITE TRADING SESSION
-2025-01-15 10:30:01 - INFO - ✅ Started real-time streaming for ['BTC/USD', 'ETH/USD']
-2025-01-15 10:30:05 - INFO - 💓 Heartbeat monitor started
-2025-01-15 10:30:35 - INFO - 📊 Spread BTC_ETH: z=2.34 -> SELL_SPREAD (conf=0.58)
-2025-01-15 10:30:35 - INFO - 📈 SELL_SPREAD executed for BTC_ETH
-```
+Current:
 
----
+> Taken together, these choices enable us to examine of equilibration from velocity distributions which are...
 
-## Graceful Shutdown
+There is a **grammar error**:
 
-Press **Ctrl+C** to initiate graceful shutdown:
+> examine of equilibration
 
-1. Stops accepting new signals
-2. Closes all open spread positions
-3. Stops WebSocket streaming
-4. Logs final session summary
+Should be:
+
+> examine equilibration from velocity distributions that are...
 
 ---
 
-## Troubleshooting
+# 11. Equilibration Criterion Paragraph — Very Good
 
-### "symbol limit exceeded (405)"
-Reduce `--max-stream-symbols` to stay under Alpaca's WebSocket limit.
+This section is clear and appropriate.
 
-### No cointegration pairs found
-- Increase `--p-threshold` (e.g., 0.15 or 0.20)
-- Increase `--days` for more historical data
-- Cryptocurrencies may not be cointegrated in current market conditions
+But PRE style prefers:
 
-### "Waiting for data..." messages
-Normal for low-liquidity assets. The system uses staleness thresholds to handle this automatically.
+> We identify equilibrium by monitoring the instantaneous values of the nonequilibrium index and the compressibility factor.
 
-### Heartbeat timeout / reconnection
-The system auto-reconnects on zombie connections. If persistent, check your network connection.
+Rather than:
+
+> Equilibration is determined by monitoring...
 
 ---
 
-## License
+# 12. Equation-of-State Discussion — Slightly Wordy
 
-MIT License - See LICENSE file for details.
+You can compress the EOS description.
 
+Example:
+
+> Equilibrium values are obtained from the hard-sphere equation of state (EOS), which is known exactly in (d=1) \cite{Ha86}. In higher dimensions we employ standard approximations.
+
+Then list them.
+
+---
+
+# 13. Final Sentence — Slightly Clunky
+
+Current:
+
+> The reported number of collisions per particle required for different initial conditions to achieve equilibrium is an average over that calculated using different approximations to the EOS.
+
+Better:
+
+> Reported equilibration times represent averages over estimates obtained using these different EOS approximations.
+
+---
+
+# A PRE-Ready Polished Version
+
+Below is a **condensed and polished version** that preserves your content but improves readability and PRE style.
+
+---
+
+### Simulation Methods (Rewritten)
+
+> We perform event-driven molecular dynamics (EDMD) simulations of hard spheres in one, two, and three spatial dimensions using the algorithm of Donev *et al.* \cite{Do05a}. Because the hard-sphere interaction potential is discontinuous, particle trajectories consist of ballistic motion punctuated by instantaneous binary collisions. The simulation advances directly from one collision event to the next, with collision times determined by solving a quadratic equation for the time at which two particles first overlap. Multi-particle collisions occur with zero probability and are therefore not considered. Because hard-sphere interactions contain no intrinsic energy scale, the total kinetic energy of the system is fixed by the initial velocity distribution.
+>
+> Systems consist of (N) particles of diameter (\sigma) and unit mass contained in a periodic hypercubic cell of side length (L), corresponding to packing fraction (\phi). Initial particle configurations span a wide class of ordered and disordered structures summarized in Table \ref{tab:initial_conditions} and described in Sec. \ref{sec:initial_conditions}. In (d=1) we consider configurations derived from an integer lattice, disordered stealthy hyperuniform (SHU) configurations with (\chi=0.1), and packings generated by the random sequential addition (RSA) process. In (d=2) we use square-lattice packings, SHU configurations with (\chi=0.1), RSA packings, a triangular cluster pattern, and an inhomogeneously compressed square lattice. In (d=3) we consider packings derived from a face-centered cubic lattice, SHU configurations with (\chi=0.1), RSA packings, and an inhomogeneously compressed square lattice.
+>
+> Initial particle velocities are drawn from several distributions characterized by the temperature scale (k_B T):
+>
+> (i) **Maxwell–Boltzmann distribution.** Velocities are drawn from the equilibrium Maxwell–Boltzmann distribution at temperature (T), corresponding to kinetic equilibrium though not necessarily configurational equilibrium.
+>
+> (ii) **Uniform distribution.** Each velocity component is drawn uniformly from the interval ([-\sqrt{3k_B T},\sqrt{3k_B T})), producing a spatially homogeneous but kinetically nonequilibrium state whose equilibrated velocity distribution corresponds to a Maxwellian at temperature (T).
+>
+> (iii) **Impulse distribution.** A localized region of elevated kinetic energy is embedded within a colder background to generate strong spatial temperature gradients. Particles satisfying
+>
+> [
+> \sum_{i=1}^{d}(r_i-L/2)^2 \le (L/4)^2
+> ]
+>
+> are assigned velocities drawn from a Maxwell–Boltzmann distribution at temperature (T_{\mathrm{hot}}), while the remaining particles are drawn from a Maxwell–Boltzmann distribution at temperature (T_{\mathrm{cold}}). The parameters (T_{\mathrm{hot}}) and (T_{\mathrm{cold}}) are chosen so that the total kinetic energy corresponds to equilibrium temperature (T).
+>
+> These choices enable us to examine equilibration from velocity distributions that are (i) kinetically equilibrated and spatially homogeneous, (ii) kinetically nonequilibrated but spatially homogeneous, and (iii) both kinetically and spatially nonequilibrated.
+>
+> Equilibrium is identified by monitoring the instantaneous values of the nonequilibrium index and the compressibility factor and determining when each converges to and fluctuates about its equilibrium value. Equilibrium values are obtained from the hard-sphere equation of state (EOS), known exactly in (d=1) \cite{Ha86}. In (d=2) we employ the approximations of Baus and Colot \cite{Ba87} and Santos *et al.* \cite{Sa95}, while in (d=3) we use the Percus–Yevick \cite{Pe58}, Baus–Colot \cite{Ba87}, and Carnahan–Starling \cite{Ca69} equations of state. Reported equilibration times represent averages over estimates obtained using these different EOS approximations.
+
+---
+
+# Overall Editorial Assessment
+
+If tightened as above, this methods section would be **fully appropriate for publication in** **Physical Review E**.
+
+Strengths:
+
+* technically correct
+* reproducible
+* interesting velocity perturbations
+* good citation of EOS approximations
+
+Remaining improvements would mostly involve **minor stylistic tightening**, not conceptual changes.
+
+---
+
+If you'd like, I can also show you **two subtle style conventions used in many PRE methods sections that make them look immediately “professional” to referees** (they concern paragraph structure and equation placement).
+
+---
+---
+---
+---
+---
+
+Evaluating this as a referee or editor for **Physical Review E**, the paragraph is **scientifically correct and broadly acceptable**, but it would likely receive a request for **minor stylistic tightening**. PRE editors tend to prefer **short, direct, technically precise prose** in the methods section, and several elements here could be improved.
+
+Below is a detailed critique from that perspective.
+
+---
+
+# 1. The First Sentence Is Good but Slightly Awkward
+
+Current:
+
+> We employ the event-driven MD (EDMD) algorithm developed by Donev, et al., \cite{Do05a} to simulate hard spheres in equilibrium across $d=1,2,$ and $3$ dimensions.
+
+Issues:
+
+### A. Citation formatting
+
+In physics writing, **“et al.” should not have a comma before it**.
+
+Correct form:
+
+> Donev *et al.*
+
+### B. “simulate hard spheres in equilibrium”
+
+This is slightly misleading.
+
+The simulation **does not assume equilibrium**; it studies **relaxation to equilibrium**.
+
+A referee might notice this.
+
+### C. “event-driven MD (EDMD)”
+
+You do not need both abbreviations again if you already use EDMD later.
+
+---
+
+### Suggested rewrite
+
+> We perform event-driven molecular dynamics (EDMD) simulations of hard spheres in one, two, and three spatial dimensions using the algorithm of Donev *et al.* \cite{Do05a}.
+
+This is **cleaner and standard PRE style**.
+
+---
+
+# 2. The Second Sentence Is Slightly Ungrammatical
+
+Current:
+
+> Due to the singular nature of hard-sphere interaction potential, EDMD algorithms process a sequence of instantaneous, binary collisions between particles.
+
+The phrase
+
+> singular nature of hard-sphere interaction potential
+
+is missing **“the”**.
+
+Also, “singular nature” is slightly awkward phrasing.
+
+PRE style prefers:
+
+> discontinuous potential
+
+---
+
+### Suggested rewrite
+
+> Because the hard-sphere interaction potential is discontinuous, EDMD simulations consist of a sequence of instantaneous binary collisions between particles.
+
+Cleaner and more standard.
+
+---
+
+# 3. Footnote Usage
+
+Your footnote:
+
+> Multi-particle collisions have zero probability...
+
+Technically correct.
+
+However, **PRE rarely uses footnotes in methods sections** unless absolutely necessary.
+
+Many referees would consider this **unnecessary**.
+
+Better incorporated into the sentence:
+
+> Because simultaneous multi-particle collisions occur with zero probability, only binary collisions are considered.
+
+This eliminates the footnote entirely.
+
+---
+
+# 4. Third Sentence Is Slightly Wordy
+
+Current:
+
+> These simulations advance directly from one collision to the next, between which particles undergo ballistic motion, allowing the time before two particles to collide to be computed by solving a quadratic equation.
+
+Issues:
+
+* Slightly long
+* “time before two particles to collide” is awkward
+* PRE prefers **shorter sentences**
+
+---
+
+### Suggested rewrite
+
+> The simulation advances directly from one collision event to the next. Between collisions particles move ballistically, and collision times are obtained by solving a quadratic equation.
+
+Two sentences improve readability.
+
+---
+
+# 5. Final Sentence Is Good but Could Be Sharpened
+
+Current:
+
+> The total kinetic energy of the system is fixed by the initial velocity distribution.
+
+This is fine but slightly incomplete.
+
+Hard-sphere simulations conserve kinetic energy **through elastic collisions**.
+
+A slightly more precise statement:
+
+> The total kinetic energy, determined by the initial velocity distribution, is conserved throughout the simulation.
+
+This reads more precise to a referee.
+
+---
+
+# 6. Logical Flow With the Rest of the Methods Section
+
+Within the **full simulation section**, the paragraph performs three roles:
+
+1. introduce EDMD
+2. explain collision dynamics
+3. state energy conservation
+
+This is **exactly what the opening paragraph should do**.
+
+So structurally it works well.
+
+The only issue is **stylistic tightening**.
+
+---
+
+# 7. A PRE-Ready Version
+
+Here is how a typical **Physical Review E methods paragraph** might read after tightening:
+
+> We perform event-driven molecular dynamics (EDMD) simulations of hard spheres in one, two, and three spatial dimensions using the algorithm of Donev *et al.* \cite{Do05a}. Because the hard-sphere interaction potential is discontinuous, the dynamics consist of a sequence of instantaneous binary collisions between particles. The simulation advances directly from one collision event to the next; between collisions particles move ballistically, and collision times are obtained by solving a quadratic equation. The total kinetic energy, determined by the initial velocity distribution, is conserved throughout the simulation.
+
+This version is:
+
+* shorter
+* smoother
+* more typical of PRE style
+
+---
+
+# 8. Editorial Verdict
+
+A **Physical Review E editor** would likely evaluate your paragraph as:
+
+| Criterion              | Evaluation             |
+| ---------------------- | ---------------------- |
+| Scientific correctness | Excellent              |
+| Reproducibility        | Good                   |
+| Clarity                | Good                   |
+| Conciseness            | Moderate               |
+| Journal style          | Needs minor tightening |
+
+Overall verdict:
+
+> “Technically sound but could be slightly streamlined.”
+
+Exactly the kind of revision typically requested during copyediting or minor referee feedback.
+
+---
+
+If you'd like, I can also show you **one small stylistic trick used in many PRE simulation sections that subtly signals “high-quality computational work” to referees within the first two paragraphs.** It’s surprisingly simple but very effective.
+
+---
+---
+---
+---
+---
+
+There is a small stylistic convention used in many strong simulation papers in **Physical Review E** that subtly signals to referees that the computational work is **careful, reproducible, and technically mature**.
+
+It is simple but very effective:
+
+## The “Parameter Declaration Sentence”
+
+Within the **first or second paragraph of the methods section**, experienced authors include a **single compact sentence that declares the core simulation parameters**.
+
+This sentence typically specifies:
+
+* system size
+* boundary conditions
+* particle properties
+* density or packing fraction
+* conserved quantities
+
+It functions as a **technical anchor** for the entire methods section.
+
+Referees subconsciously read it as evidence that the authors have **fully controlled the numerical experiment**.
+
+---
+
+# What It Looks Like
+
+Many PRE papers include a sentence like this:
+
+> Systems consist of (N) particles of diameter (\sigma) in a periodic hypercubic box of side length (L), corresponding to packing fraction (\phi).
+
+or
+
+> Simulations are performed for systems of (N=10^4) particles in a periodic cubic cell at fixed number density (\rho).
+
+This sentence typically appears **very early** in the simulation section.
+
+---
+
+# Why Referees Like It
+
+It immediately answers the questions referees care about most:
+
+* **What system is actually simulated?**
+* **What ensemble is used?**
+* **What length scales are present?**
+
+Without this sentence, referees often feel the description is **less concrete**.
+
+With it, the work feels **controlled and reproducible**.
+
+---
+
+# How It Applies to Your Paper
+
+Your methods section already contains something close:
+
+> Systems are initialized by packing (N) particles each of diameter (\sigma) in a periodic fundamental cell of side length (L) with a packing fraction of (\phi)...
+
+But it appears **buried inside a longer sentence**.
+
+To use the stylistic trick effectively, make it a **standalone declaration**.
+
+Example:
+
+> Systems consist of (N) hard spheres of diameter (\sigma) and unit mass contained in a periodic hypercubic cell of side length (L), corresponding to packing fraction (\phi).
+
+Then continue describing initialization.
+
+---
+
+# Why This Works Psychologically
+
+Referees in computational physics often read methods sections with a mental checklist:
+
+* system definition ✔
+* ensemble ✔
+* algorithm ✔
+* parameters ✔
+
+If those appear **immediately**, the paper feels **technically competent**.
+
+If they appear later or scattered, reviewers become suspicious—even if the work is actually careful.
+
+---
+
+# A Second Related Trick (Often Used Together)
+
+High-quality PRE simulation sections often follow this structure in the **first two paragraphs**:
+
+1️⃣ **Algorithm sentence**
+
+> We perform event-driven molecular dynamics simulations using the algorithm of Donev *et al.*
+
+2️⃣ **Parameter declaration**
+
+> Systems consist of (N) particles of diameter (\sigma) in a periodic cell of side length (L).
+
+3️⃣ **Initialization description**
+
+> Initial configurations are generated from …
+
+This three-step structure quietly communicates:
+
+> “The computational experiment is precisely defined.”
+
+---
+
+# What Your First Two Paragraphs Could Look Like
+
+Combining everything:
+
+> We perform event-driven molecular dynamics simulations of hard spheres in one, two, and three spatial dimensions using the algorithm of Donev *et al.* \cite{Do05a}. Because the hard-sphere interaction potential is discontinuous, the dynamics consist of a sequence of instantaneous binary collisions between particles. The simulation advances directly from one collision event to the next; between collisions particles move ballistically, and collision times are obtained by solving a quadratic equation.
+>
+> Systems consist of (N) particles of diameter (\sigma) and unit mass contained in a periodic hypercubic cell of side length (L), corresponding to packing fraction (\phi). Initial configurations are drawn from a variety of ordered and disordered structures described below.
+
+That structure will look **very familiar to experienced PRE referees**.
+
+---
+
+✅ **Result:**
+Your methods section will quietly signal **professional computational practice** without adding any extra content.
+
+---
+
+If you'd like, I can also show you **one subtle mistake that appears in many simulation sections (even in good papers) that immediately irritates PRE referees**—and it's surprisingly common in MD papers.
