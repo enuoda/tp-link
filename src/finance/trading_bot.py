@@ -194,7 +194,11 @@ class TradingPartner:
         logger.info(f"Initialized TradingPartner ({mode_str} mode)")
 
 
-    def _calculate_spread_notional(self, weights: Dict[str, float]) -> Optional[float]:
+    def _calculate_spread_notional(
+        self,
+        weights: Dict[str, float],
+        price_map: Dict[str, float],
+    ) -> Optional[float]:
         """
         Calculate the actual notional per spread based on available buying power.
 
@@ -202,8 +206,13 @@ class TradingPartner:
         so total spend = base_notional * sum(|weights|). This prevents overspending
         when hedge ratios are far from 1.0.
 
+        Also enforces a minimum floor so that every leg meets the exchange's minimum
+        order size. For each leg: qty = (notional * |weight|) / price >= min_amount,
+        so notional >= (min_amount * price) / |weight|.
+
         Args:
             weights: Dict of {asset: weight} for the spread
+            price_map: Current prices for all assets in the spread
 
         Returns:
             float: Base notional to multiply by |weight| per leg, or None if insufficient funds
@@ -215,12 +224,59 @@ class TradingPartner:
         buying_power = self._get_available_buying_power()
         total_notional_needed = self.spread_notional * total_weight
 
+        # Start with target notional, scale down if buying power is tight
         if buying_power >= total_notional_needed:
-            return self.spread_notional
+            actual_notional = self.spread_notional
+        else:
+            usable_power = buying_power * self.buying_power_buffer
+            actual_notional = usable_power / total_weight
+            logger.info(
+                f"💰 Scaling spread notional: ${self.spread_notional:.2f} -> ${actual_notional:.2f} base "
+                f"(weight sum={total_weight:.2f}, total=${actual_notional * total_weight:.2f}, "
+                f"buying power: ${buying_power:.2f})"
+            )
 
-        usable_power = buying_power * self.buying_power_buffer
-        actual_notional = usable_power / total_weight
+        # Compute minimum notional floor so every leg meets exchange min order size
+        min_notional_floor = 0.0
+        binding_asset = None
+        for asset, weight in weights.items():
+            if abs(weight) == 0:
+                continue
+            price = price_map.get(asset)
+            if price is None or price <= 0:
+                continue
+            try:
+                market = self.crypto_trader.exchange.market(asset)
+                min_amount_raw = market.get('limits', {}).get('amount', {}).get('min')
+                min_amount = float(min_amount_raw) if min_amount_raw is not None else 0.0
+            except Exception:
+                min_amount = 0.0
+            if min_amount > 0:
+                # notional * |weight| / price >= min_amount
+                # => notional >= min_amount * price / |weight|
+                required = (min_amount * price) / abs(weight)
+                if required > min_notional_floor:
+                    min_notional_floor = required
+                    binding_asset = asset
 
+        if min_notional_floor > actual_notional:
+            logger.info(
+                f"📏 Raising base notional ${actual_notional:.2f} -> ${min_notional_floor:.2f} "
+                f"to meet exchange minimum for {binding_asset}"
+            )
+            actual_notional = min_notional_floor
+
+            # Re-check buying power against the raised notional
+            total_needed = actual_notional * total_weight
+            if total_needed > buying_power:
+                logger.warning(
+                    f"⚠️ Exchange minimums require ${total_needed:.2f} "
+                    f"(base ${actual_notional:.2f} × weight sum {total_weight:.2f}), "
+                    f"but only ${buying_power:.2f} available. Skipping trade."
+                )
+                return None
+
+        # Final check: ensure smallest leg meets our own minimum
         min_leg_notional = min(actual_notional * abs(w) for w in weights.values())
         if min_leg_notional < self.min_spread_notional:
             logger.warning(
@@ -229,12 +285,6 @@ class TradingPartner:
                 f"smallest leg would be ${min_leg_notional:.2f} < min ${self.min_spread_notional:.2f}"
             )
             return None
-
-        logger.info(
-            f"💰 Scaling spread notional: ${self.spread_notional:.2f} -> ${actual_notional:.2f} base "
-            f"(weight sum={total_weight:.2f}, total=${actual_notional * total_weight:.2f}, "
-            f"buying power: ${buying_power:.2f})"
-        )
 
         return actual_notional
 
@@ -481,7 +531,7 @@ class TradingPartner:
             weights = signal.weights
             
             # Check buying power and calculate actual notional per leg
-            actual_notional = self._calculate_spread_notional(weights)
+            actual_notional = self._calculate_spread_notional(weights, price_map)
             if actual_notional is None:
                 logger.warning(f"⚠️ Skipping LONG spread {group_id}: insufficient buying power")
                 return False
@@ -625,7 +675,7 @@ class TradingPartner:
             weights = signal.weights
             
             # Check buying power and calculate actual notional per leg
-            actual_notional = self._calculate_spread_notional(weights)
+            actual_notional = self._calculate_spread_notional(weights, price_map)
             if actual_notional is None:
                 logger.warning(f"⚠️ Skipping SHORT spread {group_id}: insufficient buying power")
                 return False
